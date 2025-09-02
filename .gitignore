@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large files temporarily excluded
+*.jpeg.backup
+*.zip
+
+# Keep essential files only
+!logo_nerds.jpg
+!requirements.txt
+!Procfile
+!runtime.txt
