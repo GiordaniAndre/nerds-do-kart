@@ -6,30 +6,41 @@ import os
 app = Flask(__name__)
 
 class KartRaceData:
-    def __init__(self, excel_file='data/kart_racing_data.xlsx'):
-        self.excel_file = excel_file
-        self.last_modified = None
+    def __init__(self, data_dir='data'):
+        self.data_dir = data_dir
+        self.csv_files = {
+            'racers': f'{data_dir}/racers.csv',
+            'races': f'{data_dir}/races.csv',
+            'results': f'{data_dir}/race_results.csv'
+        }
+        self.last_modified = {}
         self.load_data()
     
-    def check_file_modified(self):
-        """Check if Excel file has been modified since last load"""
-        try:
-            current_modified = os.path.getmtime(self.excel_file)
-            if self.last_modified is None or current_modified > self.last_modified:
-                self.last_modified = current_modified
-                return True
-        except Exception as e:
-            print(f"Error checking file modification: {e}")
-        return False
+    def check_files_modified(self):
+        """Check if any CSV files have been modified since last load"""
+        modified = False
+        for name, file_path in self.csv_files.items():
+            try:
+                current_modified = os.path.getmtime(file_path)
+                if name not in self.last_modified or current_modified > self.last_modified[name]:
+                    self.last_modified[name] = current_modified
+                    modified = True
+            except Exception as e:
+                print(f"Error checking file modification for {file_path}: {e}")
+        return modified
     
     def load_data(self):
-        """Load data from Excel file"""
+        """Load data from CSV files"""
         try:
-            self.racers_df = pd.read_excel(self.excel_file, sheet_name='Racers')
-            self.races_df = pd.read_excel(self.excel_file, sheet_name='Races')
-            self.results_df = pd.read_excel(self.excel_file, sheet_name='Race_Results')
-            self.last_modified = os.path.getmtime(self.excel_file)
-            print(f"Data reloaded from {self.excel_file}")
+            self.racers_df = pd.read_csv(self.csv_files['racers'])
+            self.races_df = pd.read_csv(self.csv_files['races'])
+            self.results_df = pd.read_csv(self.csv_files['results'])
+            
+            # Update last modified times
+            for name, file_path in self.csv_files.items():
+                self.last_modified[name] = os.path.getmtime(file_path)
+                
+            print(f"Data reloaded from CSV files in {self.data_dir}")
         except Exception as e:
             print(f"Error loading data: {e}")
             self.racers_df = pd.DataFrame()
@@ -38,7 +49,7 @@ class KartRaceData:
     
     def get_data(self, df_name):
         """Get data with auto-reload check"""
-        if self.check_file_modified():
+        if self.check_files_modified():
             self.load_data()
         return getattr(self, f'{df_name}_df')
 
