@@ -8,7 +8,7 @@ A comprehensive Flask web application for tracking kart racing data among friend
 - **Racers Management**: Complete racer profiles with statistics
 - **Race Results**: Detailed race results and standings  
 - **Leaderboards**: Championship standings and win-based rankings
-- **Excel Integration**: Reads data from Excel file with multiple sheets
+- **CSV Data Management**: Reads data from CSV files for easy editing
 - **Responsive Design**: Beautiful UI that works on all devices
 - **REST API**: Complete set of API endpoints for data access
 
@@ -38,7 +38,9 @@ kart-race-tracker/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
 ├── data/
-│   └── kart_racing_data.xlsx  # Excel file with race data
+│   ├── racers.csv            # Racer information
+│   ├── races.csv             # Race details
+│   └── race_results.csv      # Race results and times
 ├── templates/
 │   └── index.html        # Main HTML template
 ├── static/
@@ -51,7 +53,7 @@ kart-race-tracker/
 
 ## Excel Data Structure
 
-The application reads from `data/kart_racing_data.xlsx` with three sheets:
+The application reads from CSV files in the `data/` directory:
 
 ### Racers Sheet
 - `racer_id`: Unique identifier
@@ -124,7 +126,7 @@ The application reads from `data/kart_racing_data.xlsx` with three sheets:
 ### 🔄 Auto-Reload Feature (No Restart Needed!)
 The application automatically detects when you edit the Excel file and reloads data on the next API request. Just:
 
-1. **Edit Excel File**: Open `data/kart_racing_data.xlsx` in Excel/LibreOffice
+1. **Edit CSV Files**: Open CSV files in `data/` directory with any text editor or spreadsheet application
 2. **Change Racer Names**: Edit any data in the Racers, Races, or Race_Results sheets
 3. **Save the File**: The website will automatically update on the next page refresh!
 
@@ -133,7 +135,7 @@ The application automatically detects when you edit the Excel file and reloads d
 - **Restart Server**: Stop and restart `python app.py` (old method)
 
 ### Example: Changing Racer Names
-1. Open `data/kart_racing_data.xlsx`
+1. Open CSV files in `data/` directory
 2. Go to "Racers" sheet
 3. Change "Alex Thunder" to "Alex Lightning" 
 4. Save the file

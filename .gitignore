@@ -19,9 +19,11 @@ Thumbs.db
 # Large files temporarily excluded
 *.jpeg.backup
 *.zip
+*.xlsx
 
 # Keep essential files only
 !logo_nerds.jpg
 !requirements.txt
 !Procfile
 !runtime.txt
+!*.csv
