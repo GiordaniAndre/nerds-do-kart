@@ -6,6 +6,7 @@ class KartRaceTracker {
 
     async init() {
         await this.loadDashboard();
+        await this.loadLocations();
         this.setupEventListeners();
     }
 
@@ -709,6 +710,103 @@ class KartRaceTracker {
             </div>
         `;
         document.body.appendChild(overlay);
+    }
+
+    async loadLocations() {
+        try {
+            const response = await fetch(`${this.apiBase}/locations`);
+            const locations = await response.json();
+            this.displayLocations(locations);
+        } catch (error) {
+            console.error('Error loading locations:', error);
+            document.getElementById('locations-grid').innerHTML = '<p>Erro ao carregar locais</p>';
+        }
+    }
+
+    displayLocations(locations) {
+        const container = document.getElementById('locations-grid');
+        if (!locations || locations.length === 0) {
+            container.innerHTML = '<p>Nenhum local encontrado</p>';
+            return;
+        }
+
+        const locationsHTML = locations.map(location => this.createLocationCard(location)).join('');
+        container.innerHTML = locationsHTML;
+    }
+
+    createLocationCard(location) {
+        const formatPrice = (price) => {
+            if (parseFloat(price) === 0 || location.rental_duration === 'Consultar') {
+                return 'Consultar';
+            }
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(parseFloat(price));
+        };
+
+        const thumbnailSrc = location.thumbnail_url || '/static/images/default-track.jpg';
+
+        return `
+            <div class="location-card">
+                <div class="location-header">
+                    <img src="${thumbnailSrc}" alt="${location.name}" class="location-thumbnail" 
+                         onerror="this.src='/static/images/default-track.jpg'">
+                    <div class="location-name-overlay">
+                        <h3>${location.name}</h3>
+                    </div>
+                </div>
+                <div class="location-body">
+                    <div class="location-info">
+                        <div class="info-row">
+                            <i class="fas fa-clock"></i>
+                            Duração: ${location.rental_duration}
+                            <span class="price-tag">${formatPrice(location.price_per_person)}</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-users"></i>
+                            ${location.min_participants} - ${location.max_participants} participantes
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-ruler-vertical"></i>
+                            Altura mínima: ${location.min_height}
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-map-marker-alt"></i>
+                            ${location.address}, ${location.neighborhood}, ${location.city}
+                        </div>
+                        ${location.exclusive_info ? `<div class="exclusive-badge">${location.exclusive_info}</div>` : ''}
+                    </div>
+                    
+                    <div class="schedule-section">
+                        <h4 style="color: #0088FF; margin-bottom: 0.8rem;">
+                            <i class="fas fa-calendar-alt"></i> Horários de Funcionamento
+                        </h4>
+                        <div class="schedule-item">
+                            <span class="schedule-label">Segunda à Sexta:</span>
+                            <span>${location.schedule_weekday}</span>
+                        </div>
+                        <div class="schedule-item">
+                            <span class="schedule-label">Sábados:</span>
+                            <span>${location.schedule_saturday}</span>
+                        </div>
+                        <div class="schedule-item">
+                            <span class="schedule-label">Dom/Feriados:</span>
+                            <span>${location.schedule_sunday}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="location-footer">
+                    <div class="social-links">
+                        ${location.instagram ? `<a href="https://instagram.com/${location.instagram.replace('@', '')}" target="_blank" class="social-link" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+                        ${location.website ? `<a href="${location.website}" target="_blank" class="social-link" title="Website"><i class="fas fa-globe"></i></a>` : ''}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #1A1A3A;">
+                        ${location.description}
+                    </div>
+                </div>
+            </div>
+        `;
     }
 }
 

@@ -9,6 +9,7 @@ A comprehensive Flask web application for tracking kart racing data among friend
 - **Race Results**: Detailed race results and standings  
 - **Leaderboards**: Championship standings and win-based rankings
 - **CSV Data Management**: Reads data from CSV files for easy editing
+- **Racing Locations**: Display karting venues with details, schedules, and pricing
 - **Responsive Design**: Beautiful UI that works on all devices
 - **REST API**: Complete set of API endpoints for data access
 
@@ -40,7 +41,8 @@ kart-race-tracker/
 ├── data/
 │   ├── racers.csv            # Racer information
 │   ├── races.csv             # Race details
-│   └── race_results.csv      # Race results and times
+│   ├── race_results.csv      # Race results and times
+│   └── locations.csv         # Racing venue information
 ├── templates/
 │   └── index.html        # Main HTML template
 ├── static/

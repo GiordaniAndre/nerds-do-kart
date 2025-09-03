@@ -11,7 +11,8 @@ class KartRaceData:
         self.csv_files = {
             'racers': f'{data_dir}/racers.csv',
             'races': f'{data_dir}/races.csv',
-            'results': f'{data_dir}/race_results.csv'
+            'results': f'{data_dir}/race_results.csv',
+            'locations': f'{data_dir}/locations.csv'
         }
         self.last_modified = {}
         self.load_data()
@@ -35,6 +36,7 @@ class KartRaceData:
             self.racers_df = pd.read_csv(self.csv_files['racers'])
             self.races_df = pd.read_csv(self.csv_files['races'])
             self.results_df = pd.read_csv(self.csv_files['results'])
+            self.locations_df = pd.read_csv(self.csv_files['locations']) if os.path.exists(self.csv_files['locations']) else pd.DataFrame()
             
             # Update last modified times
             for name, file_path in self.csv_files.items():
@@ -46,6 +48,7 @@ class KartRaceData:
             self.racers_df = pd.DataFrame()
             self.races_df = pd.DataFrame()
             self.results_df = pd.DataFrame()
+            self.locations_df = pd.DataFrame()
     
     def get_data(self, df_name):
         """Get data with auto-reload check"""
@@ -247,6 +250,30 @@ def reload_data():
             'status': 'error',
             'message': f'Failed to reload data: {str(e)}'
         }), 500
+
+@app.route('/api/locations', methods=['GET'])
+def get_locations():
+    """Get all racing locations"""
+    locations_df = data_manager.get_data('locations')
+    if locations_df.empty:
+        return jsonify([])
+    
+    locations = locations_df.to_dict('records')
+    return jsonify(locations)
+
+@app.route('/api/locations/<int:location_id>', methods=['GET'])
+def get_location(location_id):
+    """Get specific location by ID"""
+    locations_df = data_manager.get_data('locations')
+    if locations_df.empty:
+        return jsonify({'error': 'No locations data available'}), 404
+    
+    location = locations_df[locations_df['location_id'] == location_id]
+    
+    if location.empty:
+        return jsonify({'error': f'Location {location_id} not found'}), 404
+    
+    return jsonify(location.to_dict('records')[0])
 
 if __name__ == '__main__':
     import os
