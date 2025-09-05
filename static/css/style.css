@@ -793,3 +793,155 @@ body {
         padding: 1rem;
     }
 }
+
+/* Locations Section Styles */
+.locations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.location-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(255, 0, 102, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 2px solid rgba(255, 0, 102, 0.3);
+    color: #1A1A3A;
+}
+
+.location-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(255, 0, 102, 0.4);
+}
+
+.location-header {
+    position: relative;
+    height: 180px;
+    background: linear-gradient(135deg, #FF0066 0%, #0088FF 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.location-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.8;
+}
+
+.location-name-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+}
+
+.location-name-overlay h3 {
+    color: #FFFFFF;
+    margin: 0;
+    font-size: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.location-body {
+    padding: 1.5rem;
+}
+
+.location-info {
+    margin-bottom: 1rem;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    color: #1A1A3A;
+    font-weight: 500;
+}
+
+.info-row i {
+    color: #00FF88;
+    margin-right: 0.8rem;
+    width: 20px;
+    text-align: center;
+}
+
+.price-tag {
+    display: inline-block;
+    background: #FF0066;
+    color: #FFFFFF;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-left: 0.5rem;
+}
+
+.schedule-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px solid rgba(255, 0, 102, 0.2);
+}
+
+.schedule-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #1A1A3A;
+}
+
+.schedule-label {
+    color: #0088FF;
+    font-weight: 600;
+}
+
+.location-footer {
+    padding: 1rem 1.5rem;
+    background: rgba(0, 136, 255, 0.1);
+    border-top: 2px solid rgba(0, 136, 255, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.social-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.social-link {
+    color: #0088FF;
+    text-decoration: none;
+    font-size: 1.5rem;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.social-link:hover {
+    color: #FF0066;
+    transform: scale(1.2);
+}
+
+.exclusive-badge {
+    background: linear-gradient(135deg, #00FF88 0%, #0088FF 100%);
+    color: #1A1A3A;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-top: 0.5rem;
+    display: inline-block;
+}
+
+@media (max-width: 768px) {
+    .locations-grid {
+        grid-template-columns: 1fr;
+    }
+}
