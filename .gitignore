@@ -8,28 +8,38 @@ env/
 venv/
 ENV/
 
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Large files temporarily excluded
-*.jpeg.backup
+# Development files
+*.backup
 *.zip
-*.xlsx
+*.log
+*.bak
 
-# Keep essential files only
-!logo_nerds.jpg
-!requirements.txt
-!Procfile
-!runtime.txt
-!*.csv.env
+# Local development scripts
+run.sh
+start_app.sh
+*_backup.py
+test_*.html
+photo_config.js
 
 # Railway deployment
 .railway/
-
-# Local scripts with credentials
-run.sh
