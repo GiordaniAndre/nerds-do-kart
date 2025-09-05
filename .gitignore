@@ -26,4 +26,10 @@ Thumbs.db
 !requirements.txt
 !Procfile
 !runtime.txt
-!*.csv
+!*.csv.env
+
+# Railway deployment
+.railway/
+
+# Local scripts with credentials
+run.sh
