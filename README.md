@@ -24,14 +24,14 @@ A comprehensive Flask web application for tracking kart racing data among friend
    pip install -r requirements.txt
    ```
 
-2. **Environment Setup**:
+2. **Run the Application**:
    ```bash
-   cp .env.example .env
-   # Edit .env and set your DATABASE_URL for local development
+   python app.py
    ```
 
-3. **Run the Application**:
+3. **For Local Development** (optional):
    ```bash
+   export DATABASE_URL="your-postgresql-connection-string"
    python app.py
    ```
 
@@ -48,7 +48,6 @@ kart-race-tracker/
 ├── requirements.txt       # Python dependencies
 ├── Procfile              # Railway/Heroku deployment
 ├── runtime.txt           # Python version specification
-├── .env.example          # Environment variables template
 ├── templates/
 │   └── index.html        # Main HTML template
 ├── static/
