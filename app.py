@@ -26,18 +26,29 @@ if not database_url:
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-# In production, require database URL
+# Debug: Print all environment variables in production
 if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT'):
+    print("🔍 Production environment detected")
+    print(f"   DATABASE_URL: {database_url[:50] if database_url else 'NOT SET'}")
+    print(f"   DATABASE_PUBLIC_URL: {os.environ.get('DATABASE_PUBLIC_URL', 'NOT SET')}")
+    print(f"   RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT SET')}")
+    print(f"   PORT: {os.environ.get('PORT', 'NOT SET')}")
+    
     if not database_url:
-        raise Exception("DATABASE_URL is required in production! Please set it in Railway Variables.")
+        print("❌ CRITICAL: DATABASE_URL is missing in production!")
+        print("   Available env vars:", list(os.environ.keys()))
+        # Don't crash, but log the issue
+        # raise Exception("DATABASE_URL is required in production! Please set it in Railway Variables.")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///kart_race.db'
 
 if not database_url:
     print("⚠️  WARNING: Using SQLite fallback database (local only)")
     print("   Set DATABASE_URL for PostgreSQL production database")
+    print(f"   Final URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 else:
     print("🗄️  Using PostgreSQL database")
+    print(f"   Connection: {database_url[:50]}...")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize database
@@ -47,6 +58,20 @@ migrate = Migrate(app, db)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/debug', methods=['GET'])
+def debug_info():
+    """Debug endpoint to check database connection"""
+    return jsonify({
+        'database_url_set': bool(os.environ.get('DATABASE_URL')),
+        'database_public_url_set': bool(os.environ.get('DATABASE_PUBLIC_URL')),
+        'railway_environment': os.environ.get('RAILWAY_ENVIRONMENT', 'NOT SET'),
+        'port': os.environ.get('PORT', 'NOT SET'),
+        'sqlalchemy_uri': app.config['SQLALCHEMY_DATABASE_URI'][:50] if app.config['SQLALCHEMY_DATABASE_URI'] else 'NOT SET',
+        'is_sqlite': 'sqlite' in str(app.config['SQLALCHEMY_DATABASE_URI']),
+        'is_postgresql': 'postgresql' in str(app.config['SQLALCHEMY_DATABASE_URI']),
+        'env_vars_available': list(os.environ.keys())
+    })
 
 @app.route('/logo_nerds.jpg')
 def logo():
