@@ -22,6 +22,14 @@ if not database_url:
     database_url = os.environ.get('DATABASE_PUBLIC_URL')
 if not database_url:
     database_url = os.environ.get('POSTGRES_URL')
+if not database_url:
+    # Try all PostgreSQL-related environment variables
+    for key in os.environ:
+        if 'DATABASE' in key or 'POSTGRES' in key:
+            if os.environ[key].startswith('postgres'):
+                database_url = os.environ[key]
+                print(f"🔍 Found database URL in {key}")
+                break
 
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
