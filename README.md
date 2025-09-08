@@ -1,15 +1,15 @@
-# Kart Race Tracker 🏁
+# Nerds do Kart 🏁
 
-A comprehensive Flask web application for tracking kart racing data among friends. Features a beautiful responsive frontend and powerful REST API endpoints for managing racers, races, and results.
+A comprehensive Flask web application for tracking kart racing data among friends. Features a beautiful responsive frontend, PostgreSQL database, and powerful REST API endpoints.
 
 ## Features
 
 - **Dashboard**: Overview statistics and recent race information
-- **Racers Management**: Complete racer profiles with statistics
-- **Race Results**: Detailed race results and standings  
+- **Racers Management**: Complete racer profiles with statistics  
+- **Race Results**: Detailed race results and standings
 - **Leaderboards**: Championship standings and win-based rankings
-- **CSV Data Management**: Reads data from CSV files for easy editing
 - **Racing Locations**: Display karting venues with details, schedules, and pricing
+- **PostgreSQL Database**: Real-time data with proper relationships and performance
 - **Responsive Design**: Beautiful UI that works on all devices
 - **REST API**: Complete set of API endpoints for data access
 
@@ -17,6 +17,7 @@ A comprehensive Flask web application for tracking kart racing data among friend
 
 1. **Clone and Setup**:
    ```bash
+   git clone <repository-url>
    cd kart-race-tracker
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -28,8 +29,14 @@ A comprehensive Flask web application for tracking kart racing data among friend
    python app.py
    ```
 
-3. **Access the Application**:
-   - Web Interface: http://localhost:5000
+3. **For Local Development** (optional):
+   ```bash
+   export DATABASE_URL="your-postgresql-connection-string"
+   python app.py
+   ```
+
+4. **Access the Application**:
+   - Web Interface: http://localhost:5003
    - API Documentation: See endpoints below
 
 ## Project Structure
@@ -37,54 +44,28 @@ A comprehensive Flask web application for tracking kart racing data among friend
 ```
 kart-race-tracker/
 ├── app.py                 # Main Flask application
+├── models.py              # SQLAlchemy database models
 ├── requirements.txt       # Python dependencies
-├── data/
-│   ├── racers.csv            # Racer information
-│   ├── races.csv             # Race details
-│   ├── race_results.csv      # Race results and times
-│   └── locations.csv         # Racing venue information
+├── Procfile              # Railway/Heroku deployment
+├── runtime.txt           # Python version specification
 ├── templates/
 │   └── index.html        # Main HTML template
 ├── static/
 │   ├── css/
 │   │   └── style.css     # Styling
-│   └── js/
-│       └── app.js        # Frontend JavaScript
-└── venv/                 # Virtual environment (created after setup)
+│   ├── js/
+│   │   └── app.js        # Frontend JavaScript
+│   └── images/           # Venue photos
+└── logo_nerds.jpg        # App logo
 ```
 
-## Excel Data Structure
+## Database Schema
 
-The application reads from CSV files in the `data/` directory:
-
-### Racers Sheet
-- `racer_id`: Unique identifier
-- `name`: Racer name
-- `age`: Age
-- `experience_years`: Years of experience
-- `total_races`: Total races participated
-- `wins`: Number of wins
-- `podium_finishes`: Number of podium finishes
-
-### Races Sheet
-- `race_id`: Unique identifier
-- `race_name`: Race name
-- `date`: Race date
-- `track_name`: Track name
-- `weather`: Weather conditions
-- `total_laps`: Number of laps
-- `winner_id`: ID of the winner
-
-### Race_Results Sheet
-- `result_id`: Unique identifier
-- `race_id`: Race reference
-- `racer_id`: Racer reference
-- `position`: Final position
-- `lap_time_best`: Best lap time
-- `lap_time_average`: Average lap time
-- `total_time`: Total race time
-- `points_earned`: Championship points
-- `dnf`: Did not finish (boolean)
+The application uses PostgreSQL with these main tables:
+- **Racers**: Racer profiles and statistics
+- **Locations**: Racing venues with details and pricing
+- **Races**: Individual race events
+- **RaceResults**: Detailed race results and lap times
 
 ## API Endpoints
 
@@ -97,7 +78,7 @@ The application reads from CSV files in the `data/` directory:
 - `GET /api/races/<id>` - Get specific race with results
 - `GET /api/recent-races` - Get 5 most recent races
 
-### Results/Values
+### Results
 - `GET /api/results` - Get all race results (with racer and race info)
 - `GET /api/values` - Alias for results endpoint
 
@@ -105,6 +86,10 @@ The application reads from CSV files in the `data/` directory:
 - `GET /api/leaderboard` - Racers ranked by wins
 - `GET /api/standings` - Championship standings by points
 - `GET /api/stats` - General statistics (totals, fastest lap, etc.)
+
+### Locations
+- `GET /api/locations` - Get all racing locations
+- `GET /api/locations/<id>` - Get specific location details
 
 ### Example API Response
 ```json
@@ -123,64 +108,34 @@ The application reads from CSV files in the `data/` directory:
 }
 ```
 
-## Editing Race Data
+## Deployment
 
-### 🔄 Auto-Reload Feature (No Restart Needed!)
-The application automatically detects when you edit the Excel file and reloads data on the next API request. Just:
+### Railway (Recommended)
+1. Connect your GitHub repository to Railway
+2. Railway automatically provides `DATABASE_URL` for PostgreSQL
+3. Deploy with zero configuration
 
-1. **Edit CSV Files**: Open CSV files in `data/` directory with any text editor or spreadsheet application
-2. **Change Racer Names**: Edit any data in the Racers, Races, or Race_Results sheets
-3. **Save the File**: The website will automatically update on the next page refresh!
+### Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string (automatically provided by Railway)
+- `PORT`: Server port (optional, defaults to 5003)
+- `ENVIRONMENT`: Set to "production" for production deployment
 
-### Manual Methods
-- **Force Reload**: Send POST to `/api/reload` 
-- **Restart Server**: Stop and restart `python app.py` (old method)
+## Development
 
-### Example: Changing Racer Names
-1. Open CSV files in `data/` directory
-2. Go to "Racers" sheet
-3. Change "Alex Thunder" to "Alex Lightning" 
-4. Save the file
-5. Refresh the website - the change appears immediately!
+### Local Development
+```bash
+# Set your database URL in .env
+DATABASE_URL=postgresql://username:password@host:port/database
 
-## Customization
-
-### Modifying the Frontend
-- Edit `templates/index.html` for structure changes
-- Modify `static/css/style.css` for styling
-- Update `static/js/app.js` for functionality changes
-
-### Adding New API Endpoints
-Add new routes in `app.py` following the existing pattern:
-
-```python
-@app.route('/api/my-endpoint', methods=['GET'])
-def my_endpoint():
-    # Your logic here
-    return jsonify({
-        'status': 'success',
-        'data': your_data
-    })
+# Run the application
+python app.py
 ```
 
-## Mock Data
-
-The project includes comprehensive mock data with:
-- 10 racers with varied statistics
-- 25 races across 5 different tracks
-- Realistic race results with lap times and points
-- Weather conditions and track variations
-
-## Requirements
-
-- Python 3.7+
-- Flask 3.1.2
-- pandas 2.3.2
-- openpyxl 3.1.5
-
-## License
-
-This project is open source. Feel free to modify and extend it for your kart racing adventures!
+### Technologies Used
+- **Backend**: Flask, SQLAlchemy, PostgreSQL
+- **Frontend**: HTML5, CSS3, JavaScript (ES6)
+- **Database**: PostgreSQL with proper relationships
+- **Deployment**: Railway, GitHub
 
 ## Contributing
 
