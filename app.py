@@ -17,8 +17,19 @@ app = Flask(__name__)
 # Database configuration
 database_url = os.environ.get('DATABASE_URL')
 
+# Also check for Railway's default database URL patterns
+if not database_url:
+    database_url = os.environ.get('DATABASE_PUBLIC_URL')
+if not database_url:
+    database_url = os.environ.get('POSTGRES_URL')
+
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+# In production, require database URL
+if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT'):
+    if not database_url:
+        raise Exception("DATABASE_URL is required in production! Please set it in Railway Variables.")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///kart_race.db'
 
