@@ -266,6 +266,36 @@ def reload_data():
             'message': f'Database error: {str(e)}'
         }), 500
 
+@app.route('/api/init-db', methods=['GET'])
+def init_database():
+    """Initialize database with starter data (run once)"""
+    try:
+        # Check if already has data
+        if Racer.query.first():
+            return jsonify({
+                'status': 'success',
+                'message': 'Database already has data'
+            })
+        
+        # Import the init function
+        from init_production_db import init_production_data
+        init_production_data()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Database initialized with data!',
+            'stats': {
+                'racers': Racer.query.count(),
+                'locations': Location.query.count(),
+                'races': Race.query.count()
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error initializing database: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5003))
