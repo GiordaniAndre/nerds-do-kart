@@ -1,0 +1,108 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #3498db;">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.racers }}</h3>
+                <p>Pilotos</p>
+            </div>
+            <a href="{{ url_for('admin.racers') }}" class="stat-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #e74c3c;">
+                <i class="fas fa-flag-checkered"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.races }}</h3>
+                <p>Corridas</p>
+            </div>
+            <a href="{{ url_for('admin.races') }}" class="stat-link">Ver todas <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #f39c12;">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.results }}</h3>
+                <p>Resultados</p>
+            </div>
+            <a href="{{ url_for('admin.results') }}" class="stat-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #27ae60;">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.locations }}</h3>
+                <p>Locais</p>
+            </div>
+            <a href="{{ url_for('admin.locations') }}" class="stat-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #9b59b6;">
+                <i class="fas fa-medal"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.championships }}</h3>
+                <p>Campeonatos</p>
+            </div>
+            <a href="{{ url_for('admin.championships') }}" class="stat-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #1abc9c;">
+                <i class="fas fa-images"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.albums }}</h3>
+                <p>Albuns</p>
+            </div>
+            <a href="{{ url_for('admin.albums') }}" class="stat-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #34495e;">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.users }}</h3>
+                <p>Usuarios</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <h2>Ações Rápidas</h2>
+        <div class="actions-grid">
+            <a href="{{ url_for('admin.racers') }}" class="action-card">
+                <i class="fas fa-user-plus"></i>
+                <span>Novo Piloto</span>
+            </a>
+            <a href="{{ url_for('admin.races') }}" class="action-card">
+                <i class="fas fa-plus-circle"></i>
+                <span>Nova Corrida</span>
+            </a>
+            <a href="{{ url_for('admin.results') }}" class="action-card">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Novo Resultado</span>
+            </a>
+            <a href="{{ url_for('admin.championships') }}" class="action-card">
+                <i class="fas fa-award"></i>
+                <span>Novo Campeonato</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

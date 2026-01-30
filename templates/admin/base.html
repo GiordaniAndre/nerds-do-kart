@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} - Nerds do Kart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="/logo_nerds.jpg" alt="Logo" class="sidebar-logo">
+                <h2>Nerds do Kart</h2>
+                <p>Portal do Administrador</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('admin.racers') }}" class="nav-item {% if request.endpoint == 'admin.racers' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>Pilotos</span>
+                </a>
+                <a href="{{ url_for('admin.races') }}" class="nav-item {% if request.endpoint == 'admin.races' %}active{% endif %}">
+                    <i class="fas fa-flag-checkered"></i>
+                    <span>Corridas</span>
+                </a>
+                <a href="{{ url_for('admin.results') }}" class="nav-item {% if request.endpoint == 'admin.results' %}active{% endif %}">
+                    <i class="fas fa-trophy"></i>
+                    <span>Resultados</span>
+                </a>
+                <a href="{{ url_for('admin.locations') }}" class="nav-item {% if request.endpoint == 'admin.locations' %}active{% endif %}">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Locais</span>
+                </a>
+                <a href="{{ url_for('admin.championships') }}" class="nav-item {% if request.endpoint == 'admin.championships' %}active{% endif %}">
+                    <i class="fas fa-medal"></i>
+                    <span>Campeonatos</span>
+                </a>
+                <a href="{{ url_for('admin.albums') }}" class="nav-item {% if request.endpoint == 'admin.albums' %}active{% endif %}">
+                    <i class="fas fa-images"></i>
+                    <span>Albuns</span>
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="nav-item {% if request.endpoint == 'admin.users' %}active{% endif %}">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Usuarios</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="{{ url_for('index') }}" class="nav-item">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Voltar ao Site</span>
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="nav-item logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+                <div class="header-right">
+                    <span class="user-info">
+                        <i class="fas fa-user"></i>
+                        {{ current_user.name }}
+                    </span>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                <span>{{ message }}</span>
+                                <button onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="content-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Template -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal</h3>
+                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Confirmar Exclusao</h3>
+                <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-message">Tem certeza que deseja excluir este item?</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                    <button class="btn btn-danger" id="confirm-delete-btn">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

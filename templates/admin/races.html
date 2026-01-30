@@ -1,0 +1,219 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Corridas{% endblock %}
+{% block page_title %}Gerenciar Corridas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Nova Corrida
+    </button>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Data</th>
+                <th>Local</th>
+                <th>Campeonato</th>
+                <th>Clima</th>
+                <th>Voltas</th>
+                <th>Vencedor</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for race in races %}
+            <tr data-id="{{ race.id }}">
+                <td>{{ race.id }}</td>
+                <td>{{ race.race_name }}</td>
+                <td>{{ race.date.strftime('%d/%m/%Y') if race.date else '-' }}</td>
+                <td>{{ race.location.name if race.location else '-' }}</td>
+                <td>{{ race.championship.name if race.championship else '-' }}</td>
+                <td>{{ race.weather or '-' }}</td>
+                <td>{{ race.total_laps or '-' }}</td>
+                <td>{{ race.winner.name if race.winner else '-' }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-secondary" onclick='openEditModal({{ race.id }}, {{ race.to_dict()|tojson }})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ race.id }}, '{{ race.race_name }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="empty-message">Nenhuma corrida cadastrada</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create/Edit Form Template -->
+<template id="race-form-template">
+    <form id="race-form" onsubmit="saveRace(event)">
+        <input type="hidden" id="race-id" name="id">
+        <div class="form-group">
+            <label for="race-name">Nome da Corrida *</label>
+            <input type="text" id="race-name" name="race_name" required>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="race-date">Data *</label>
+                <input type="date" id="race-date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label for="race-location">Local</label>
+                <select id="race-location" name="location_id">
+                    <option value="">Selecione...</option>
+                    {% for location in locations %}
+                    <option value="{{ location.id }}">{{ location.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="race-championship">Campeonato</label>
+                <select id="race-championship" name="championship_id">
+                    <option value="">Selecione...</option>
+                    {% for championship in championships %}
+                    <option value="{{ championship.id }}">{{ championship.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="race-track">Nome da Pista</label>
+                <input type="text" id="race-track" name="track_name">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="race-weather">Clima</label>
+                <select id="race-weather" name="weather">
+                    <option value="">Selecione...</option>
+                    <option value="Ensolarado">Ensolarado</option>
+                    <option value="Nublado">Nublado</option>
+                    <option value="Chuvoso">Chuvoso</option>
+                    <option value="Noturno">Noturno</option>
+                    <option value="Indoor">Indoor</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="race-laps">Total de Voltas</label>
+                <input type="number" id="race-laps" name="total_laps" min="1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="race-winner">Vencedor</label>
+            <select id="race-winner" name="winner_id">
+                <option value="">Selecione...</option>
+                {% for racer in racers %}
+                <option value="{{ racer.id }}">{{ racer.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityUrl = '/admin/races';
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Nova Corrida';
+    const template = document.getElementById('race-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('race-id').value = '';
+    openModal();
+}
+
+function openEditModal(id, race) {
+    document.getElementById('modal-title').textContent = 'Editar Corrida';
+    const template = document.getElementById('race-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('race-id').value = id;
+    document.getElementById('race-name').value = race.race_name || '';
+    document.getElementById('race-date').value = race.date ? race.date.split('T')[0] : '';
+    document.getElementById('race-location').value = race.location_id || '';
+    document.getElementById('race-championship').value = race.championship_id || '';
+    document.getElementById('race-track').value = race.track_name || '';
+    document.getElementById('race-weather').value = race.weather || '';
+    document.getElementById('race-laps').value = race.total_laps || '';
+    document.getElementById('race-winner').value = race.winner_id || '';
+
+    openModal();
+}
+
+function saveRace(event) {
+    event.preventDefault();
+    const form = document.getElementById('race-form');
+    const id = document.getElementById('race-id').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar corrida', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir a corrida "${name}"?`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteRace(id);
+    openDeleteModal();
+}
+
+function deleteRace(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir corrida', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

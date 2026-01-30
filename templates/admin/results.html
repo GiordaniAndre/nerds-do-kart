@@ -1,0 +1,557 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Resultados{% endblock %}
+{% block page_title %}Gerenciar Resultados{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="filters">
+        <form method="GET" class="filter-form">
+            <select name="race_id" onchange="this.form.submit()">
+                <option value="">Todas as Corridas</option>
+                {% for race in races %}
+                <option value="{{ race.id }}" {% if selected_race_id == race.id %}selected{% endif %}>
+                    {{ race.race_name }} ({{ race.date.strftime('%d/%m/%Y') if race.date else 'Sem data' }})
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+    <div class="header-buttons">
+        <button class="btn btn-info" onclick="openBatchModal()">
+            <i class="fas fa-list-ol"></i> Adicionar em Lote
+        </button>
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Novo Resultado
+        </button>
+    </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+<div class="bulk-actions-bar" id="bulk-actions-bar" style="display: none;">
+    <div class="bulk-actions-info">
+        <span id="selected-count">0</span> resultado(s) selecionado(s)
+    </div>
+    <div class="bulk-actions-buttons">
+        <button class="btn btn-danger btn-sm" onclick="bulkDelete()">
+            <i class="fas fa-trash"></i> Excluir Selecionados
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+            <i class="fas fa-times"></i> Limpar Selecao
+        </button>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="checkbox-column">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                </th>
+                <th>ID</th>
+                <th>Corrida</th>
+                <th>Piloto</th>
+                <th>Posicao</th>
+                <th>Melhor Volta</th>
+                <th>Volta Media</th>
+                <th>Tempo Total</th>
+                <th>Pontos</th>
+                <th>Voltas</th>
+                <th>DNF</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result, racer_name, race_name in results %}
+            <tr data-id="{{ result.id }}">
+                <td class="checkbox-column">
+                    <input type="checkbox" class="result-checkbox" value="{{ result.id }}" onchange="updateSelection()">
+                </td>
+                <td>{{ result.id }}</td>
+                <td>{{ race_name }}</td>
+                <td>{{ racer_name }}</td>
+                <td>{{ result.position or '-' }}</td>
+                <td>{{ result.lap_time_best or '-' }}</td>
+                <td>{{ result.lap_time_average or '-' }}</td>
+                <td>{{ result.total_time or '-' }}</td>
+                <td>{{ result.points_earned or 0 }}</td>
+                <td>{{ result.laps or '-' }}</td>
+                <td>{{ 'Sim' if result.dnf else 'Nao' }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-secondary" onclick='openEditModal({{ result.id }}, {{ result.to_dict()|tojson }})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ result.id }}, '{{ racer_name }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="12" class="empty-message">Nenhum resultado cadastrado</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Batch Entry Setup Template -->
+<template id="batch-setup-template">
+    <form id="batch-setup-form" onsubmit="generateBatchForm(event)">
+        <div class="form-group">
+            <label for="batch-race">Corrida *</label>
+            <select id="batch-race" name="race_id" required>
+                <option value="">Selecione a corrida...</option>
+                {% for race in races %}
+                <option value="{{ race.id }}">{{ race.race_name }} ({{ race.date.strftime('%d/%m/%Y') if race.date else 'Sem data' }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="batch-count">Quantos pilotos participaram? *</label>
+            <input type="number" id="batch-count" name="count" min="1" max="50" required placeholder="Ex: 10">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-arrow-right"></i> Continuar
+            </button>
+        </div>
+    </form>
+</template>
+
+<!-- Batch Entry Form Template -->
+<template id="batch-form-template">
+    <form id="batch-results-form" onsubmit="saveBatchResults(event)">
+        <input type="hidden" id="batch-race-id" name="race_id">
+        <div class="batch-race-info">
+            <strong><i class="fas fa-flag-checkered"></i> Corrida:</strong> <span id="batch-race-name"></span>
+        </div>
+        <div class="batch-results-container" id="batch-results-container">
+            <!-- Dynamic rows will be inserted here -->
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="openBatchModal()">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar Todos
+            </button>
+        </div>
+    </form>
+</template>
+
+<!-- Create/Edit Form Template -->
+<template id="result-form-template">
+    <form id="result-form" onsubmit="saveResult(event)">
+        <input type="hidden" id="result-id" name="id">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="result-race">Corrida *</label>
+                <select id="result-race" name="race_id" required>
+                    <option value="">Selecione...</option>
+                    {% for race in races %}
+                    <option value="{{ race.id }}">{{ race.race_name }} ({{ race.date.strftime('%d/%m/%Y') if race.date else 'Sem data' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="result-racer">Piloto *</label>
+                <select id="result-racer" name="racer_id" required>
+                    <option value="">Selecione...</option>
+                    {% for racer in racers %}
+                    <option value="{{ racer.id }}">{{ racer.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="result-position">Posicao</label>
+                <input type="number" id="result-position" name="position" min="1">
+            </div>
+            <div class="form-group">
+                <label for="result-points">Pontos</label>
+                <input type="number" id="result-points" name="points_earned" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="result-laps">Voltas</label>
+                <input type="number" id="result-laps" name="laps" min="0">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="result-best">Melhor Volta</label>
+                <input type="text" id="result-best" name="lap_time_best" placeholder="MM:SS.mmm">
+            </div>
+            <div class="form-group">
+                <label for="result-avg">Volta Media</label>
+                <input type="text" id="result-avg" name="lap_time_average" placeholder="MM:SS.mmm">
+            </div>
+            <div class="form-group">
+                <label for="result-total">Tempo Total</label>
+                <input type="text" id="result-total" name="total_time" placeholder="HH:MM:SS.mmm">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="result-dnf" name="dnf" value="true">
+                <span>DNF (Nao terminou)</span>
+            </label>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityUrl = '/admin/results';
+
+// Racers data for batch form
+const racersData = [
+    {% for racer in racers %}
+    { id: {{ racer.id }}, name: "{{ racer.name }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const racesData = {
+    {% for race in races %}
+    {{ race.id }}: "{{ race.race_name }} ({{ race.date.strftime('%d/%m/%Y') if race.date else 'Sem data' }})"{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Batch entry functions
+function openBatchModal() {
+    document.getElementById('modal-title').textContent = 'Adicionar Resultados em Lote';
+    const template = document.getElementById('batch-setup-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    // Pre-select race if filtered
+    const urlParams = new URLSearchParams(window.location.search);
+    const raceId = urlParams.get('race_id');
+    if (raceId) {
+        document.getElementById('batch-race').value = raceId;
+    }
+
+    openModal();
+}
+
+function generateBatchForm(event) {
+    event.preventDefault();
+
+    const raceId = document.getElementById('batch-race').value;
+    const count = parseInt(document.getElementById('batch-count').value);
+
+    if (!raceId || !count) {
+        showNotification('Preencha todos os campos', 'error');
+        return;
+    }
+
+    document.getElementById('modal-title').textContent = 'Preencher Resultados';
+    const template = document.getElementById('batch-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('batch-race-id').value = raceId;
+    document.getElementById('batch-race-name').textContent = racesData[raceId];
+
+    const container = document.getElementById('batch-results-container');
+    container.innerHTML = '';
+
+    for (let i = 1; i <= count; i++) {
+        const row = document.createElement('div');
+        row.className = 'batch-result-row';
+        row.innerHTML = `
+            <div class="batch-row-header">
+                <span class="position-badge">${i}º</span>
+                <select name="racer_${i}" class="batch-racer-select" required>
+                    <option value="">Selecione o piloto...</option>
+                    ${racersData.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="batch-row-fields">
+                <div class="batch-field">
+                    <label>Melhor Volta</label>
+                    <input type="text" name="best_${i}" placeholder="MM:SS.mmm">
+                </div>
+                <div class="batch-field">
+                    <label>Volta Media</label>
+                    <input type="text" name="avg_${i}" placeholder="MM:SS.mmm">
+                </div>
+                <div class="batch-field">
+                    <label>Tempo Total</label>
+                    <input type="text" name="total_${i}" placeholder="HH:MM:SS">
+                </div>
+                <div class="batch-field">
+                    <label>Pontos</label>
+                    <input type="number" name="points_${i}" min="0" value="0">
+                </div>
+                <div class="batch-field">
+                    <label>Voltas</label>
+                    <input type="number" name="laps_${i}" min="0">
+                </div>
+                <div class="batch-field batch-field-checkbox">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="dnf_${i}">
+                        <span>DNF</span>
+                    </label>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+
+    // Store count for submission
+    container.dataset.count = count;
+}
+
+function saveBatchResults(event) {
+    event.preventDefault();
+
+    const raceId = document.getElementById('batch-race-id').value;
+    const container = document.getElementById('batch-results-container');
+    const count = parseInt(container.dataset.count);
+
+    const results = [];
+
+    for (let i = 1; i <= count; i++) {
+        const racerId = document.querySelector(`[name="racer_${i}"]`).value;
+
+        if (!racerId) {
+            showNotification(`Selecione o piloto para a posicao ${i}`, 'error');
+            return;
+        }
+
+        results.push({
+            racer_id: parseInt(racerId),
+            position: i,
+            lap_time_best: document.querySelector(`[name="best_${i}"]`).value || null,
+            lap_time_average: document.querySelector(`[name="avg_${i}"]`).value || null,
+            total_time: document.querySelector(`[name="total_${i}"]`).value || null,
+            points_earned: parseInt(document.querySelector(`[name="points_${i}"]`).value) || 0,
+            laps: parseInt(document.querySelector(`[name="laps_${i}"]`).value) || null,
+            dnf: document.querySelector(`[name="dnf_${i}"]`).checked
+        });
+    }
+
+    fetch(`${entityUrl}/bulk-create`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            race_id: raceId,
+            results: results
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar resultados', 'error');
+        console.error(error);
+    });
+}
+
+// Bulk selection functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.result-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelection();
+}
+
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.result-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkActionsBar = document.getElementById('bulk-actions-bar');
+    const selectedCount = document.getElementById('selected-count');
+    const selectAll = document.getElementById('select-all');
+
+    selectedCount.textContent = count;
+
+    if (count > 0) {
+        bulkActionsBar.style.display = 'flex';
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.result-checkbox');
+    selectAll.checked = allCheckboxes.length > 0 && allCheckboxes.length === count;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.result-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    document.getElementById('select-all').checked = false;
+    updateSelection();
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.result-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+function bulkDelete() {
+    const resultIds = getSelectedIds();
+    if (resultIds.length === 0) {
+        showNotification('Selecione pelo menos um resultado', 'error');
+        return;
+    }
+
+    if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE ${resultIds.length} resultado(s)? Esta acao nao pode ser desfeita.`)) {
+        return;
+    }
+
+    fetch(`${entityUrl}/bulk-delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            result_ids: resultIds
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao processar operacao', 'error');
+        console.error(error);
+    });
+}
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Novo Resultado';
+    const template = document.getElementById('result-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('result-id').value = '';
+
+    // Pre-select race if filtered
+    const urlParams = new URLSearchParams(window.location.search);
+    const raceId = urlParams.get('race_id');
+    if (raceId) {
+        document.getElementById('result-race').value = raceId;
+    }
+
+    openModal();
+}
+
+function openEditModal(id, result) {
+    document.getElementById('modal-title').textContent = 'Editar Resultado';
+    const template = document.getElementById('result-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('result-id').value = id;
+    document.getElementById('result-race').value = result.race_id || '';
+    document.getElementById('result-racer').value = result.racer_id || '';
+    document.getElementById('result-position').value = result.position || '';
+    document.getElementById('result-points').value = result.points_earned || 0;
+    document.getElementById('result-laps').value = result.laps || '';
+    document.getElementById('result-best').value = result.lap_time_best || '';
+    document.getElementById('result-avg').value = result.lap_time_average || '';
+    document.getElementById('result-total').value = result.total_time || '';
+    document.getElementById('result-dnf').checked = result.dnf || false;
+
+    // Disable race and racer selection when editing
+    document.getElementById('result-race').disabled = true;
+    document.getElementById('result-racer').disabled = true;
+
+    openModal();
+}
+
+function saveResult(event) {
+    event.preventDefault();
+    const form = document.getElementById('result-form');
+    const id = document.getElementById('result-id').value;
+    const formData = new FormData(form);
+
+    // Handle checkbox
+    if (!formData.has('dnf')) {
+        formData.append('dnf', 'false');
+    }
+
+    // Get values from disabled fields
+    if (id) {
+        formData.set('race_id', document.getElementById('result-race').value);
+        formData.set('racer_id', document.getElementById('result-racer').value);
+    }
+
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar resultado', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, racerName) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir o resultado de "${racerName}"?`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteResult(id);
+    openDeleteModal();
+}
+
+function deleteResult(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir resultado', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

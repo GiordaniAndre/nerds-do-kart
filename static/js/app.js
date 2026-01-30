@@ -81,19 +81,86 @@ class KartRaceTracker {
     async loadDashboard() {
         const stats = await this.fetchAPI('/stats');
         const recentRaces = await this.fetchAPI('/recent-races');
+        const fastestByLocation = await this.fetchAPI('/fastest-by-location');
 
         if (stats) {
             document.getElementById('total-racers').textContent = stats.total_racers;
             document.getElementById('total-races').textContent = stats.total_races;
-            document.getElementById('fastest-lap').textContent = 
-                stats.fastest_lap_time ? `${stats.fastest_lap_time}s` : 'N/A';
-            document.getElementById('fastest-racer').textContent = 
-                stats.fastest_lap_racer || 'N/A';
+        }
+
+        if (fastestByLocation) {
+            this.renderFastestByLocation(fastestByLocation);
         }
 
         if (recentRaces) {
             this.renderRecentRaces(recentRaces);
         }
+    }
+
+    renderFastestByLocation(data) {
+        const container = document.getElementById('fastest-by-location-grid');
+        if (!container) return;
+
+        if (data.length === 0) {
+            container.innerHTML = '<p class="no-data">Nenhum dado disponivel</p>';
+            return;
+        }
+
+        container.innerHTML = data.map(item => `
+            <div class="fastest-location-card">
+                <div class="location-name">
+                    <i class="fas fa-map-marker-alt"></i>
+                    ${item.location_name}
+                </div>
+                <div class="weather-times">
+                    ${item.dry ? `
+                        <div class="weather-time dry">
+                            <div class="weather-label">
+                                <i class="fas fa-sun"></i> Seco
+                            </div>
+                            <div class="fastest-time">
+                                <i class="fas fa-stopwatch"></i>
+                                ${item.dry.fastest_lap}
+                            </div>
+                            <div class="fastest-racer-name">
+                                <i class="fas fa-user"></i>
+                                ${item.dry.fastest_racer}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${item.wet ? `
+                        <div class="weather-time wet">
+                            <div class="weather-label">
+                                <i class="fas fa-cloud-rain"></i> Molhado
+                            </div>
+                            <div class="fastest-time">
+                                <i class="fas fa-stopwatch"></i>
+                                ${item.wet.fastest_lap}
+                            </div>
+                            <div class="fastest-racer-name">
+                                <i class="fas fa-user"></i>
+                                ${item.wet.fastest_racer}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${item.indoor ? `
+                        <div class="weather-time indoor">
+                            <div class="weather-label">
+                                <i class="fas fa-warehouse"></i> Indoor
+                            </div>
+                            <div class="fastest-time">
+                                <i class="fas fa-stopwatch"></i>
+                                ${item.indoor.fastest_lap}
+                            </div>
+                            <div class="fastest-racer-name">
+                                <i class="fas fa-user"></i>
+                                ${item.indoor.fastest_racer}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
     }
 
     renderRecentRaces(races) {
@@ -112,23 +179,73 @@ class KartRaceTracker {
     async loadRacers() {
         const racers = await this.fetchAPI('/racers');
         if (racers) {
+            this.racersData = racers;
             this.renderRacers(racers);
         }
     }
 
+    filterRacers(searchTerm) {
+        if (!this.racersData) return;
+
+        const term = searchTerm.toLowerCase().trim();
+        if (term === '') {
+            this.renderRacers(this.racersData);
+            return;
+        }
+
+        const filtered = this.racersData.filter(racer =>
+            racer.name.toLowerCase().includes(term)
+        );
+        this.renderRacers(filtered);
+    }
+
     renderRacers(racers) {
         const container = document.getElementById('racers-grid');
+        if (!container) return;
+
+        if (racers.length === 0) {
+            container.innerHTML = '<p class="no-results">Nenhum piloto encontrado</p>';
+            return;
+        }
+
         container.innerHTML = racers.map(racer => `
             <div class="racer-card">
                 <h3><i class="fas fa-user"></i> ${racer.name}</h3>
                 <div class="racer-stats">
-                    <div><strong>Idade:</strong> ${racer.age}</div>
-                    <div><strong>Experiência:</strong> ${racer.experience_years} anos</div>
-                    <div><strong>Total de Corridas:</strong> ${racer.total_races}</div>
-                    <div><strong>Vitórias:</strong> ${racer.wins}</div>
-                    <div><strong>Pódios:</strong> ${racer.podium_finishes}</div>
-                    <div><strong>Taxa de Vitória:</strong> ${((racer.wins / racer.total_races) * 100).toFixed(1)}%</div>
+                    <div class="racer-stat-row">
+                        <span class="stat-label"><i class="fas fa-birthday-cake"></i> Idade:</span>
+                        <span class="stat-value">${racer.age || '-'}</span>
+                    </div>
+                    <div class="racer-stat-row">
+                        <span class="stat-label"><i class="fas fa-flag-checkered"></i> Corridas:</span>
+                        <span class="stat-value">${racer.total_races || 0}</span>
+                    </div>
+                    <div class="racer-stat-row">
+                        <span class="stat-label"><i class="fas fa-trophy"></i> Vitorias:</span>
+                        <span class="stat-value">${racer.wins || 0}</span>
+                    </div>
+                    <div class="racer-stat-row">
+                        <span class="stat-label"><i class="fas fa-medal"></i> Podios:</span>
+                        <span class="stat-value">${racer.podium_finishes || 0}</span>
+                    </div>
                 </div>
+                ${racer.best_laps_by_location && racer.best_laps_by_location.length > 0 ? `
+                    <div class="racer-best-laps">
+                        <h4><i class="fas fa-stopwatch"></i> Melhores Voltas</h4>
+                        <div class="best-laps-list">
+                            ${racer.best_laps_by_location.map(loc => `
+                                <div class="best-lap-location">
+                                    <div class="lap-location-name">${loc.location_name}</div>
+                                    <div class="lap-conditions">
+                                        ${loc.dry ? `<span class="lap-condition dry"><i class="fas fa-sun"></i> ${loc.dry}</span>` : ''}
+                                        ${loc.wet ? `<span class="lap-condition wet"><i class="fas fa-cloud-rain"></i> ${loc.wet}</span>` : ''}
+                                        ${loc.indoor ? `<span class="lap-condition indoor"><i class="fas fa-warehouse"></i> ${loc.indoor}</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `).join('');
     }
@@ -142,33 +259,77 @@ class KartRaceTracker {
 
     renderRaces(races) {
         const container = document.getElementById('races-list');
-        container.innerHTML = races.map(race => `
-            <div class="race-item">
-                <div>
-                    <h4>${race.race_name}</h4>
-                    <p><i class="fas fa-map-marker-alt"></i> ${race.track_name}</p>
+        container.innerHTML = races.map((race, index) => `
+            <div class="race-dropdown">
+                <div class="race-dropdown-header" onclick="app.toggleRaceResults(${index}, ${race.race_id})">
+                    <div class="race-dropdown-info">
+                        <h4>${race.race_name}</h4>
+                        <p class="race-meta">
+                            <span><i class="fas fa-calendar"></i> ${this.formatDate(race.date)}</span>
+                            <span><i class="fas fa-map-marker-alt"></i> ${race.track_name || 'N/A'}</span>
+                            <span><i class="fas fa-cloud"></i> ${this.translateWeather(race.weather)}</span>
+                            <span><i class="fas fa-flag"></i> ${race.total_laps || 'N/A'} voltas</span>
+                        </p>
+                    </div>
+                    <div class="race-dropdown-toggle">
+                        <i class="fas fa-chevron-down" id="race-toggle-icon-${index}"></i>
+                    </div>
                 </div>
-                <div>
-                    <p><strong>Data:</strong> ${this.formatDate(race.date)}</p>
-                    <p><strong>Clima:</strong> ${this.translateWeather(race.weather)}</p>
-                </div>
-                <div>
-                    <p><strong>Voltas:</strong> ${race.total_laps}</p>
-                </div>
-                <div>
-                    <button class="nav-btn" onclick="app.showRaceDetails(${race.race_id})">
-                        <i class="fas fa-eye"></i> Detalhes
-                    </button>
+                <div class="race-results-container collapsed" id="race-results-${index}">
+                    <div class="race-results-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando resultados...
+                    </div>
                 </div>
             </div>
         `).join('');
     }
 
-    async showRaceDetails(raceId) {
-        const race = await this.fetchAPI(`/races/${raceId}`);
-        if (race) {
-            alert(`Corrida: ${race.race_name}\nVencedor: ${race.results[0]?.name || 'Desconhecido'}\nResultados carregados no console`);
-            console.log('Detalhes da Corrida:', race);
+    async toggleRaceResults(index, raceId) {
+        const container = document.getElementById(`race-results-${index}`);
+        const icon = document.getElementById(`race-toggle-icon-${index}`);
+
+        if (container.classList.contains('collapsed')) {
+            container.classList.remove('collapsed');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+
+            // Load results if not already loaded
+            if (container.dataset.loaded !== 'true') {
+                const race = await this.fetchAPI(`/races/${raceId}`);
+                if (race && race.results && race.results.length > 0) {
+                    container.innerHTML = `
+                        <table class="race-results-table">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Piloto</th>
+                                    <th>Voltas</th>
+                                    <th>Tempo Total</th>
+                                    <th>Melhor Volta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${race.results.map(result => `
+                                    <tr class="${result.dnf ? 'dnf-row' : ''}">
+                                        <td>${result.position || '-'}</td>
+                                        <td>${result.name}${result.dnf ? ' <span class="dnf-badge">DNF</span>' : ''}</td>
+                                        <td>${result.laps || '-'}</td>
+                                        <td>${result.total_time || '-'}</td>
+                                        <td>${result.lap_time_best || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    container.innerHTML = '<p class="no-results">Nenhum resultado registrado para esta corrida.</p>';
+                }
+                container.dataset.loaded = 'true';
+            }
+        } else {
+            container.classList.add('collapsed');
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
         }
     }
 
@@ -177,10 +338,9 @@ class KartRaceTracker {
         if (leaderboard) {
             this.renderTable('leaderboard-table', leaderboard, [
                 { key: 'name', label: 'Piloto' },
-                { key: 'wins', label: 'Vitórias' },
-                { key: 'total_races', label: 'Total de Corridas' },
-                { key: 'podium_finishes', label: 'Pódios' },
-                { key: 'experience_years', label: 'Experiência (anos)' }
+                { key: 'total_races', label: 'Corridas' },
+                { key: 'wins', label: 'Vitorias' },
+                { key: 'podium_finishes', label: 'Podios' }
             ]);
         }
     }
@@ -245,473 +405,564 @@ class KartRaceTracker {
 
     // Media Section Functions
     initMediaSection() {
-        // Load saved Drive IDs from localStorage if available
-        const photosId = localStorage.getItem('photos-drive-id');
-        const videosId = localStorage.getItem('videos-drive-id');
-        
-        if (photosId) {
-            document.getElementById('photos-drive-id').value = photosId;
-        }
-        if (videosId) {
-            document.getElementById('videos-drive-id').value = videosId;
-        }
-
-        // Load default photos immediately for demo
-        this.loadDefaultPhotos();
+        // Load albums from API
+        this.loadAlbums();
     }
 
-    loadDefaultPhotos() {
-        const container = document.getElementById('photos-grid');
-        
-        // Load saved race albums from localStorage
-        const savedAlbums = JSON.parse(localStorage.getItem('race-albums') || '[]');
-        
-        if (savedAlbums.length > 0) {
-            this.displayRaceAlbums(savedAlbums, container);
-        } else {
-            // Show default content with instructions
-            container.innerHTML = `
-                <div class="media-upload-info">
-                    <h3>📸 Álbuns das Corridas - Nerds do Kart</h3>
-                    <p><i class="fas fa-info-circle"></i> Adicione álbuns do Google Photos das suas corridas</p>
-                </div>
+    async loadAlbums() {
+        try {
+            const response = await fetch('/api/albums');
+            const result = await response.json();
 
-                <div class="add-album-section">
-                    <h3>➕ Adicionar Álbum de Corrida</h3>
-                    <div class="album-form">
-                        <input type="text" id="race-name-input" placeholder="Nome da corrida (ex: Velopark - 30/08/2025)" />
-                        <input type="text" id="race-album-link" placeholder="Link do Google Photos (ex: https://photos.app.goo.gl/...)" />
-                        <input type="text" id="cover-photo-link" placeholder="Link da foto de capa (opcional - deixe vazio para usar ícone)" />
-                        <button onclick="app.addRaceAlbum()" class="nav-btn">
-                            <i class="fas fa-plus"></i> Adicionar Álbum
-                        </button>
-                    </div>
-                    <div class="cover-photo-help">
-                        <small><i class="fas fa-lightbulb"></i> 
-                        <strong>Dica:</strong> Para foto de capa, abra uma foto do álbum no Google Photos → 
-                        Compartilhar → "Qualquer pessoa com o link" → 
-                        Cole o ID: <code>https://drive.google.com/uc?id=ID_DA_FOTO</code>
-                        </small>
-                    </div>
-                </div>
-                
-                <div class="media-item demo-album">
-                    <img src="/velopark-cover.jpg" 
-                         alt="Velopark Photos" 
-                         onclick="window.open('https://photos.app.goo.gl/A5rxNUdX5L49BUDM8', '_blank')" 
-                         style="cursor: pointer;" />
-                    <div class="media-item-info">
-                        <h4>Velopark</h4>
-                        <p>Fotos da corrida</p>
-                        <small>📷 Clique para ver álbum completo</small>
-                    </div>
-                </div>
-
-                <div class="google-photos-guide">
-                    <h3>📋 Como usar com Google Photos:</h3>
-                    <ol>
-                        <li><strong>Após cada corrida:</strong> Peça para alguém criar um álbum compartilhado</li>
-                        <li><strong>Todos compartilham fotos:</strong> Cada piloto adiciona suas fotos ao álbum</li>
-                        <li><strong>Pegue o link:</strong> No Google Photos → Compartilhar → Copiar link</li>
-                        <li><strong>Adicione aqui:</strong> Use o formulário acima para adicionar à galeria</li>
-                        <li><strong>Resultado:</strong> Álbum aparece na galeria para todos verem</li>
-                    </ol>
-                    
-                    <div class="workflow-example">
-                        <h4>💡 Fluxo Recomendado:</h4>
-                        <p><strong>1. Corrida no Velopark →</strong> Alguém cria álbum "Velopark 30/08"</p>
-                        <p><strong>2. Todos enviam fotos →</strong> WhatsApp: "Galera, adicionem no álbum!"</p>
-                        <p><strong>3. Link no site →</strong> Administrador adiciona o link aqui</p>
-                        <p><strong>4. Galeria atualizada →</strong> Todos veem as fotos organizadas</p>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    displayRaceAlbums(albums, container) {
-        const albumCards = albums.map(album => {
-            let thumbnailContent;
-            
-            if (album.coverPhoto) {
-                // Use the cover photo if provided
-                thumbnailContent = `<img src="${album.coverPhoto}" alt="${album.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px 10px 0 0;" />`;
+            if (result.status === 'success' && result.data.length > 0) {
+                this.displayAlbums(result.data);
             } else {
-                // Use default icon layout
-                thumbnailContent = `
-                    <i class="fas fa-images"></i>
-                    <h4>${album.name}</h4>
-                    <p>Clique para ver fotos</p>
-                `;
+                this.showEmptyMediaState();
             }
-
-            return `
-                <div class="media-item race-album">
-                    <div class="album-thumbnail" onclick="window.open('${album.link}', '_blank')" style="cursor: pointer;">
-                        ${thumbnailContent}
-                    </div>
-                    <div class="media-item-info">
-                        <h4>${album.name}</h4>
-                        <p><i class="fas fa-calendar"></i> ${album.date || 'Data não informada'}</p>
-                        <p><i class="fas fa-external-link-alt"></i> <a href="${album.link}" target="_blank">Abrir álbum</a></p>
-                        <button onclick="app.removeRaceAlbum('${album.id}')" class="remove-btn">
-                            <i class="fas fa-trash"></i> Remover
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="media-upload-info">
-                <h3>📸 Álbuns das Corridas - Nerds do Kart</h3>
-                <p><i class="fas fa-camera"></i> ${albums.length} álbum${albums.length !== 1 ? 's' : ''} adicionado${albums.length !== 1 ? 's' : ''}</p>
-            </div>
-
-            <div class="add-album-section">
-                <h3>➕ Adicionar Novo Álbum</h3>
-                <div class="album-form">
-                    <input type="text" id="race-name-input" placeholder="Nome da corrida (ex: Interlagos - 15/09/2025)" />
-                    <input type="text" id="race-album-link" placeholder="Link do Google Photos" />
-                    <input type="text" id="cover-photo-link" placeholder="Link da foto de capa (opcional)" />
-                    <button onclick="app.addRaceAlbum()" class="nav-btn">
-                        <i class="fas fa-plus"></i> Adicionar Álbum
-                    </button>
-                </div>
-                <div class="cover-photo-help">
-                    <small><i class="fas fa-lightbulb"></i> 
-                    <strong>Dica:</strong> Para foto de capa do álbum, copie o ID de uma foto específica
-                    </small>
-                </div>
-            </div>
-
-            ${albumCards}
-        `;
+        } catch (error) {
+            console.error('Error loading albums:', error);
+            this.showEmptyMediaState();
+        }
     }
 
-    addRaceAlbum() {
-        const nameInput = document.getElementById('race-name-input');
-        const linkInput = document.getElementById('race-album-link');
-        const coverInput = document.getElementById('cover-photo-link');
-        
-        const name = nameInput.value.trim();
-        const link = linkInput.value.trim();
-        const coverPhoto = coverInput.value.trim();
-        
-        if (!name || !link) {
-            alert('Por favor, preencha o nome da corrida e o link do álbum');
-            return;
-        }
+    displayAlbums(albums) {
+        const albumsGrid = document.getElementById('albums-grid');
 
-        if (!link.includes('photos.app.goo.gl') && !link.includes('photos.google.com')) {
-            alert('Por favor, use um link válido do Google Photos');
-            return;
-        }
-
-        // Process cover photo link if provided
-        let processedCoverPhoto = '';
-        if (coverPhoto) {
-            if (coverPhoto.includes('drive.google.com/file/d/')) {
-                // Extract ID from Google Drive link and convert to direct link
-                const fileId = coverPhoto.split('/file/d/')[1].split('/')[0];
-                processedCoverPhoto = `https://drive.google.com/uc?id=${fileId}`;
-            } else if (coverPhoto.includes('drive.google.com/uc?id=') || coverPhoto.includes('imgur.com') || coverPhoto.startsWith('http')) {
-                // Already a direct link
-                processedCoverPhoto = coverPhoto;
-            } else {
-                // Assume it's just an ID
-                processedCoverPhoto = `https://drive.google.com/uc?id=${coverPhoto}`;
-            }
-        }
-
-        // Get existing albums
-        const savedAlbums = JSON.parse(localStorage.getItem('race-albums') || '[]');
-        
-        // Add new album
-        const newAlbum = {
-            id: Date.now().toString(),
-            name: name,
-            link: link,
-            coverPhoto: processedCoverPhoto,
-            date: new Date().toLocaleDateString('pt-BR'),
-            addedAt: new Date().toISOString()
-        };
-
-        savedAlbums.unshift(newAlbum); // Add to beginning
-        localStorage.setItem('race-albums', JSON.stringify(savedAlbums));
-
-        // Clear inputs
-        nameInput.value = '';
-        linkInput.value = '';
-        coverInput.value = '';
-
-        // Refresh display
-        this.loadDefaultPhotos();
-        
-        alert(`Álbum "${name}" adicionado com sucesso!${processedCoverPhoto ? ' Com foto de capa personalizada.' : ''}`);
-    }
-
-    removeRaceAlbum(albumId) {
-        if (!confirm('Tem certeza que deseja remover este álbum?')) return;
-
-        const savedAlbums = JSON.parse(localStorage.getItem('race-albums') || '[]');
-        const filteredAlbums = savedAlbums.filter(album => album.id !== albumId);
-        
-        localStorage.setItem('race-albums', JSON.stringify(filteredAlbums));
-        this.loadDefaultPhotos();
-    }
-
-    async loadPhotos() {
-        const input = document.getElementById('photos-drive-id').value.trim();
-        if (!input) {
-            alert('Por favor, insira um link do Google Photos ou Google Drive');
-            return;
-        }
-
-        // Save the input for future use
-        localStorage.setItem('photos-drive-id', input);
-
-        const container = document.getElementById('photos-grid');
-        container.innerHTML = '<div class="loading-media"><i class="fas fa-spinner"></i><p>Carregando fotos...</p></div>';
-
-        // Check if it's a Google Photos link
-        if (input.includes('photos.app.goo.gl') || input.includes('photos.google.com')) {
-            this.loadGooglePhotos(input, container);
+        if (albums.length > 0) {
+            albumsGrid.innerHTML = albums.map(album => this.createAlbumCard(album)).join('');
         } else {
-            this.loadGoogleDrivePhotos(input, container);
-        }
-    }
-
-    loadGooglePhotos(link, container) {
-        // Handle your specific Velopark album - with actual demo photos
-        if (link === 'https://photos.app.goo.gl/A5rxNUdX5L49BUDM8') {
-            container.innerHTML = `
-                <div class="media-upload-info">
-                    <h3>📸 Velopark - 2025-08-30</h3>
-                    <p><i class="fas fa-calendar"></i> Corrida no Velopark</p>
-                    <p><i class="fas fa-external-link-alt"></i> <a href="${link}" target="_blank">Ver álbum completo no Google Photos</a></p>
-                    <p><i class="fas fa-info-circle"></i> <strong>Para mostrar fotos reais:</strong> Adicione os links diretos das imagens abaixo</p>
-                </div>
-                
-                <div class="media-item">
-                    <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop&auto=format" 
-                         alt="Largada Velopark" 
-                         onclick="app.openGooglePhotos('${link}')" 
-                         style="cursor: pointer;" />
-                    <div class="media-item-info">
-                        <h4>Largada - Velopark</h4>
-                        <p>Momentos antes da corrida começar</p>
-                        <small>📷 Clique para ver no Google Photos</small>
-                    </div>
-                </div>
-
-                <div class="media-item">
-                    <img src="https://images.unsplash.com/photo-1583900985737-6d0495555783?w=400&h=300&fit=crop&auto=format" 
-                         alt="Corrida em andamento" 
-                         onclick="app.openGooglePhotos('${link}')" 
-                         style="cursor: pointer;" />
-                    <div class="media-item-info">
-                        <h4>Ação na Pista</h4>
-                        <p>Disputas acirradas no Velopark</p>
-                        <small>📷 Clique para ver no Google Photos</small>
-                    </div>
-                </div>
-
-                <div class="media-item">
-                    <img src="https://images.unsplash.com/photo-1593766827228-8737b4534aa6?w=400&h=300&fit=crop&auto=format" 
-                         alt="Pódio da corrida" 
-                         onclick="app.openGooglePhotos('${link}')" 
-                         style="cursor: pointer;" />
-                    <div class="media-item-info">
-                        <h4>Celebração</h4>
-                        <p>Momento da vitória!</p>
-                        <small>📷 Clique para ver no Google Photos</small>
-                    </div>
-                </div>
-
-                <div class="media-item">
-                    <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop&auto=format" 
-                         alt="Equipe dos Nerds" 
-                         onclick="app.openGooglePhotos('${link}')" 
-                         style="cursor: pointer;" />
-                    <div class="media-item-info">
-                        <h4>Equipe Completa</h4>
-                        <p>Todos os pilotos reunidos</p>
-                        <small>📷 Clique para ver no Google Photos</small>
-                    </div>
-                </div>
-
-                <div class="photo-upload-instructions">
-                    <h3>🔧 Como adicionar suas fotos reais:</h3>
-                    <p><strong>Método 1 - Google Drive (Recomendado):</strong></p>
-                    <ol>
-                        <li>Faça upload das fotos para uma pasta no Google Drive</li>
-                        <li>Para cada foto: botão direito → "Obter link" → "Qualquer pessoa com o link"</li>
-                        <li>Copie o ID da foto (parte entre /file/d/ e /view)</li>
-                        <li>Use: <code>https://drive.google.com/uc?id=SEU_ID_AQUI</code></li>
-                        <li>Substitua os links acima pelos seus links reais</li>
-                    </ol>
-                    
-                    <p><strong>Método 2 - Upload direto:</strong></p>
-                    <ol>
-                        <li>Faça upload das fotos para a pasta <code>static/images/</code> do projeto</li>
-                        <li>Use: <code>{{ url_for('static', filename='images/foto1.jpg') }}</code></li>
-                    </ol>
-                    
-                    <p><strong>Método 3 - Imgur (Gratuito):</strong></p>
-                    <ol>
-                        <li>Faça upload das fotos no <a href="https://imgur.com" target="_blank">imgur.com</a></li>
-                        <li>Copie o link direto da imagem</li>
-                        <li>Substitua os links acima</li>
-                    </ol>
-                </div>
-            `;
-        } else {
-            // Generic Google Photos album
-            container.innerHTML = `
-                <div class="media-upload-info">
-                    <h3>📸 Álbum do Google Photos</h3>
-                    <p><i class="fas fa-external-link-alt"></i> <a href="${link}" target="_blank">Ver álbum completo</a></p>
-                </div>
-                <div class="media-item">
-                    <div class="photo-placeholder" onclick="app.openGooglePhotos('${link}')">
-                        <i class="fas fa-images"></i>
-                        <h4>Álbum de Fotos</h4>
-                        <p>Clique para abrir no Google Photos</p>
-                    </div>
-                    <div class="media-item-info">
-                        <h4>Fotos da Corrida</h4>
-                        <p>Ver todas as fotos</p>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    loadGoogleDrivePhotos(input, container) {
-        // Extract folder ID from the Drive link
-        let folderId = input;
-        if (input.includes('drive.google.com/drive/folders/')) {
-            folderId = input.split('/folders/')[1].split('?')[0];
+            albumsGrid.innerHTML = '<div class="empty-state"><i class="fas fa-folder"></i><p>Nenhum álbum ainda</p></div>';
         }
 
-        container.innerHTML = `
-            <div class="media-upload-info">
-                <h3>📁 Pasta do Google Drive</h3>
-                <p><i class="fas fa-folder"></i> ID da Pasta: <code>${folderId}</code></p>
-                <p><i class="fas fa-external-link-alt"></i> <a href="https://drive.google.com/drive/folders/${folderId}" target="_blank">Abrir pasta no Google Drive</a></p>
-                <br>
-                <p><i class="fas fa-exclamation-triangle"></i> <strong>Problema:</strong> Google Drive não permite exibir fotos de pastas diretamente em sites por questões de segurança.</p>
-            </div>
-
-            <div class="photo-upload-instructions">
-                <h3>🔧 SOLUÇÃO - Como mostrar suas fotos reais:</h3>
-                
-                <p><strong>Método 1 - Links individuais (Funciona 100%):</strong></p>
-                <ol>
-                    <li><strong>Abra sua pasta:</strong> <a href="https://drive.google.com/drive/folders/${folderId}" target="_blank">Clique aqui para abrir</a></li>
-                    <li><strong>Para cada foto:</strong> Clique na foto → Clique nos 3 pontos (...) → "Compartilhar"</li>
-                    <li><strong>Torne pública:</strong> "Qualquer pessoa com o link pode visualizar" → "Copiar link"</li>
-                    <li><strong>Extraia o ID:</strong> Do link <code>https://drive.google.com/file/d/<span style="background: yellow;">ID_AQUI</span>/view</code></li>
-                    <li><strong>Use este formato:</strong> <code>https://drive.google.com/uc?id=ID_AQUI</code></li>
-                </ol>
-
-                <p><strong>Método 2 - Imgur (Mais Fácil):</strong></p>
-                <ol>
-                    <li>Baixe suas fotos do Google Drive</li>
-                    <li>Faça upload em <a href="https://imgur.com" target="_blank">imgur.com</a> (gratuito, sem cadastro)</li>
-                    <li>Copie os links diretos das imagens</li>
-                    <li>Use os links do Imgur no código</li>
-                </ol>
-
-                <p><strong>Exemplo prático com suas fotos:</strong></p>
-                <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                    <p>Se você tem uma foto com link:</p>
-                    <code>https://drive.google.com/file/d/1ABC123DEF456/view</code>
-                    <p>Use:</p>
-                    <code>https://drive.google.com/uc?id=1ABC123DEF456</code>
-                </div>
-            </div>
-
-            <div class="demo-replacement">
-                <h3>📝 Substitua as fotos demo:</h3>
-                <p>Edite o arquivo <code>static/js/app.js</code> na função <code>loadDefaultPhotos()</code> e substitua os links do Unsplash pelos seus links do Google Drive ou Imgur.</p>
-                
-                <div class="media-item">
-                    <div style="background: linear-gradient(135deg, #0088FF, #FF0066); color: white; height: 200px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">
-                        <div style="text-align: center;">
-                            <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <h4>Suas Fotos Aqui</h4>
-                            <p>Siga as instruções acima</p>
-                        </div>
-                    </div>
-                    <div class="media-item-info">
-                        <h4>Exemplo de Substituição</h4>
-                        <p>Cole os links das suas fotos reais</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    openGooglePhotos(link) {
-        window.open(link, '_blank');
+        this.loadVideos();
+        this.loadPhotosByRace();
     }
 
     async loadVideos() {
-        const driveId = document.getElementById('videos-drive-id').value.trim();
-        if (!driveId) {
-            alert('Por favor, insira o ID da pasta do Google Drive');
+        const videosGrid = document.getElementById('videos-grid');
+        try {
+            const response = await fetch('/api/videos');
+            const result = await response.json();
+
+            if (result.status === 'success' && result.data.length > 0) {
+                videosGrid.innerHTML = result.data.map(video => this.createVideoCard(video)).join('');
+            } else {
+                videosGrid.innerHTML = '<div class="empty-state"><i class="fas fa-video"></i><p>Nenhum vídeo ainda</p></div>';
+            }
+        } catch (error) {
+            console.error('Error loading videos:', error);
+            videosGrid.innerHTML = '<div class="empty-state"><i class="fas fa-video"></i><p>Erro ao carregar vídeos</p></div>';
+        }
+    }
+
+    async loadPhotosByRace() {
+        try {
+            const response = await fetch('/api/photos/by-race');
+            const result = await response.json();
+
+            if (result.status === 'success' && result.data.length > 0) {
+                this.displayPhotosByRace(result.data);
+            } else {
+                this.showEmptyPhotosState();
+            }
+        } catch (error) {
+            console.error('Error loading photos by race:', error);
+            this.showEmptyPhotosState();
+        }
+    }
+
+    displayPhotosByRace(raceAlbums) {
+        const container = document.getElementById('photos-by-race-container');
+
+        const html = raceAlbums.map((raceAlbum, index) => `
+            <div class="race-photos-section">
+                <div class="race-photos-header collapsible" onclick="app.toggleRacePhotos(${index})">
+                    <div class="race-photos-header-content">
+                        <h3>
+                            <i class="fas fa-flag-checkered"></i>
+                            ${raceAlbum.race_name}
+                        </h3>
+                        <p class="album-subtitle">
+                            ${raceAlbum.album_name} • ${raceAlbum.photo_count} foto${raceAlbum.photo_count !== 1 ? 's' : ''}
+                            ${raceAlbum.race_date ? ` • ${new Date(raceAlbum.race_date).toLocaleDateString('pt-BR')}` : ''}
+                        </p>
+                    </div>
+                    <div class="race-photos-toggle">
+                        <i class="fas fa-chevron-down" id="toggle-icon-${index}"></i>
+                    </div>
+                </div>
+                <div class="race-photos-grid collapsed" id="race-photos-grid-${index}">
+                    ${raceAlbum.photos.map(photo => `
+                        <div class="photo-item" onclick="app.openImage('${photo.url}')">
+                            <img src="${photo.url}" alt="${photo.title || 'Foto'}" loading="lazy">
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = html;
+    }
+
+    toggleRacePhotos(index) {
+        const grid = document.getElementById(`race-photos-grid-${index}`);
+        const icon = document.getElementById(`toggle-icon-${index}`);
+
+        if (grid.classList.contains('collapsed')) {
+            grid.classList.remove('collapsed');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        } else {
+            grid.classList.add('collapsed');
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        }
+    }
+
+    showEmptyPhotosState() {
+        const container = document.getElementById('photos-by-race-container');
+        container.innerHTML = `
+            <div class="empty-state-card">
+                <i class="fas fa-images"></i>
+                <h3>Nenhuma foto ainda</h3>
+                <p>As fotos das corridas aparecerão aqui organizadas por corrida</p>
+            </div>
+        `;
+    }
+
+    createAlbumCard(album) {
+        // Prioritize photos for cover image
+        let coverImage = album.cover_url;
+
+        // If no cover_url, find first photo in media_preview
+        if (!coverImage && album.media_preview) {
+            const firstPhoto = album.media_preview.find(item => item.media_type === 'photo');
+            if (firstPhoto) {
+                coverImage = firstPhoto.url;
+            }
+        }
+
+        const raceName = album.race_name ? `<div class="album-race"><i class="fas fa-flag-checkered"></i> ${album.race_name}</div>` : '';
+
+        return `
+            <div class="album-card" onclick="app.openAlbum(${album.id})">
+                <div class="album-cover">
+                    ${coverImage ?
+                        `<img src="${coverImage}" alt="${album.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect fill=%22%23667%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23fff%22 font-size=%2216%22>Foto</text></svg>'">`
+                        : `<div class="album-placeholder"><i class="fas fa-images"></i></div>`
+                    }
+                    ${album.media_count ? `<div class="album-count"><i class="fas fa-photo-video"></i> ${album.media_count}</div>` : ''}
+                </div>
+                <div class="album-info">
+                    <h3>${album.name}</h3>
+                    ${raceName}
+                    ${album.description ? `<p class="album-description">${album.description}</p>` : ''}
+                    ${album.google_photos_link ? `<a href="${album.google_photos_link}" target="_blank" class="album-link" onclick="event.stopPropagation()"><i class="fas fa-external-link-alt"></i> Ver no Google Photos</a>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    createVideoCard(video) {
+        const youtubeId = this.extractYouTubeId(video.url);
+        const thumbnail = youtubeId ?
+            `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg` :
+            'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22><rect fill=%22%23c00%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23fff%22 font-size=%2216%22>Video</text></svg>';
+
+        return `
+            <div class="video-card" onclick="app.openVideo('${video.url}')">
+                <div class="video-thumbnail">
+                    <img src="${thumbnail}" alt="${video.title || 'Video'}">
+                    <div class="video-play-overlay"><i class="fas fa-play-circle"></i></div>
+                </div>
+                <div class="video-info">
+                    <h4>${video.title || 'Vídeo'}</h4>
+                    ${video.description ? `<p>${video.description}</p>` : ''}
+                    ${video.album_name ? `<small><i class="fas fa-folder"></i> ${video.album_name}</small>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    extractYouTubeId(url) {
+        if (!url) return null;
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+            /^([a-zA-Z0-9_-]{11})$/
+        ];
+
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+        }
+        return null;
+    }
+
+    async openAlbum(albumId) {
+        try {
+            const response = await fetch(`/api/albums/${albumId}`);
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                this.showAlbumModal(result.data);
+            }
+        } catch (error) {
+            console.error('Error loading album:', error);
+        }
+    }
+
+    showAlbumModal(album) {
+        // Separate photos and videos
+        const photos = album.media_items ? album.media_items.filter(item => item.media_type === 'photo') : [];
+        const videos = album.media_items ? album.media_items.filter(item => item.media_type === 'video') : [];
+
+        const modal = document.createElement('div');
+        modal.className = 'media-modal active';
+        modal.innerHTML = `
+            <div class="media-modal-content album-modal">
+                <div class="media-modal-header">
+                    <div>
+                        <h2>${album.name}</h2>
+                        ${album.race_name ? `<p><i class="fas fa-flag-checkered"></i> ${album.race_name}</p>` : ''}
+                    </div>
+                    <button onclick="this.closest('.media-modal').remove()" class="modal-close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="media-modal-body">
+                    <!-- Upload Actions (if logged in) -->
+                    ${this.isAuthenticated ? `
+                        <div class="upload-actions" id="upload-actions-${album.id}">
+                            <button class="upload-btn" onclick="app.showUploadPhotoModal(${album.id})">
+                                <i class="fas fa-image"></i> Adicionar Foto
+                            </button>
+                            <button class="upload-btn" onclick="app.showUploadVideoModal(${album.id})">
+                                <i class="fas fa-video"></i> Adicionar Vídeo
+                            </button>
+                        </div>
+                    ` : ''}
+
+                    <!-- Photos Section -->
+                    <div class="album-section">
+                        <h3><i class="fas fa-images"></i> Fotos (${photos.length})</h3>
+                        <div class="media-grid-modal">
+                            ${photos.length > 0 ?
+                                photos.map(item => `
+                                    <div class="media-item-modal" onclick="app.openImage('${item.url}')">
+                                        <img src="${item.url}" alt="${item.title || 'Foto'}" loading="lazy">
+                                        ${item.title ? `<div class="media-item-title">${item.title}</div>` : ''}
+                                    </div>
+                                `).join('')
+                                : '<p class="empty-section">Nenhuma foto ainda</p>'
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Videos Section -->
+                    <div class="album-section">
+                        <h3><i class="fas fa-video"></i> Vídeos (${videos.length})</h3>
+                        <div class="media-grid-modal">
+                            ${videos.length > 0 ?
+                                videos.map(item => {
+                                    const youtubeId = this.extractYouTubeId(item.url);
+                                    return `
+                                        <div class="media-item-modal" onclick="app.openVideo('${item.url}')">
+                                            <img src="https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg" alt="${item.title || 'Video'}">
+                                            <div class="video-play-overlay"><i class="fas fa-play-circle"></i></div>
+                                            ${item.title ? `<div class="media-item-title">${item.title}</div>` : ''}
+                                        </div>
+                                    `;
+                                }).join('')
+                                : '<p class="empty-section">Nenhum vídeo ainda</p>'
+                            }
+                        </div>
+                    </div>
+                </div>
+                ${album.google_photos_link ? `
+                    <div class="media-modal-footer">
+                        <a href="${album.google_photos_link}" target="_blank" class="nav-btn">
+                            <i class="fas fa-external-link-alt"></i> Ver no Google Photos
+                        </a>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    openVideo(url) {
+        const youtubeId = this.extractYouTubeId(url);
+        const embedUrl = youtubeId ?
+            `https://www.youtube.com/embed/${youtubeId}?autoplay=1` :
+            url;
+
+        const modal = document.createElement('div');
+        modal.className = 'media-modal active';
+        modal.innerHTML = `
+            <div class="media-modal-content video-modal">
+                <button onclick="this.closest('.media-modal').remove()" class="modal-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="video-container">
+                    <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    openImage(url) {
+        const modal = document.createElement('div');
+        modal.className = 'media-modal active';
+        modal.innerHTML = `
+            <div class="media-modal-content image-modal">
+                <button onclick="this.closest('.media-modal').remove()" class="modal-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+                <img src="${url}" alt="Foto" onclick="event.stopPropagation()">
+            </div>
+        `;
+        modal.onclick = () => modal.remove();
+        document.body.appendChild(modal);
+    }
+
+    showEmptyMediaState() {
+        const photosGrid = document.getElementById('photos-grid');
+        const videosGrid = document.getElementById('videos-grid');
+
+        photosGrid.innerHTML = `
+            <div class="empty-state-card">
+                <i class="fas fa-images"></i>
+                <h3>Nenhum álbum ainda</h3>
+                <p>Os álbuns de fotos das corridas aparecerão aqui</p>
+                ${app.isAdmin ? '<p><small>Use o painel admin para adicionar álbuns</small></p>' : ''}
+            </div>
+        `;
+
+        videosGrid.innerHTML = `
+            <div class="empty-state-card">
+                <i class="fas fa-video"></i>
+                <h3>Nenhum vídeo ainda</h3>
+                <p>Os vídeos das corridas aparecerão aqui</p>
+                ${app.isAdmin ? '<p><small>Use o painel admin para adicionar vídeos</small></p>' : ''}
+            </div>
+        `;
+    }
+
+    showUploadPhotoModal(albumId) {
+        const modal = document.createElement('div');
+        modal.className = 'media-modal active';
+        modal.innerHTML = `
+            <div class="media-modal-content upload-modal">
+                <div class="media-modal-header">
+                    <h2><i class="fas fa-image"></i> Adicionar Fotos</h2>
+                    <button onclick="this.closest('.media-modal').remove()" class="modal-close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="media-modal-body">
+                    <form id="photo-upload-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="photo-file">Selecione uma ou mais fotos</label>
+                            <input type="file" id="photo-file" accept="image/jpeg,image/png,image/gif,image/webp" multiple required>
+                            <small>Formatos: JPG, PNG, GIF, WEBP | Tamanho máx por foto: 10MB</small>
+                        </div>
+                        <div id="file-preview" class="file-preview"></div>
+                        <div class="form-group">
+                            <label for="photo-title">Título geral (opcional)</label>
+                            <input type="text" id="photo-title" placeholder="Ex: Corrida do dia 15/01">
+                            <small>Este título será aplicado a todas as fotos</small>
+                        </div>
+                        <div class="upload-progress" id="photo-upload-progress" style="display: none;">
+                            <div class="progress-bar"><div class="progress-fill" id="photo-progress-fill"></div></div>
+                            <p id="photo-progress-text">Enviando...</p>
+                        </div>
+                        <button type="submit" class="upload-submit-btn" id="upload-submit-btn">
+                            <i class="fas fa-upload"></i> Enviar Fotos
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Show file preview when files are selected
+        document.getElementById('photo-file').addEventListener('change', (e) => {
+            this.showFilePreview(e.target.files);
+        });
+
+        document.getElementById('photo-upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.uploadPhotos(albumId, modal);
+        });
+    }
+
+    showFilePreview(files) {
+        const preview = document.getElementById('file-preview');
+        preview.innerHTML = '';
+
+        if (files.length === 0) return;
+
+        preview.innerHTML = `<h4>Fotos selecionadas: ${files.length}</h4>`;
+        const grid = document.createElement('div');
+        grid.className = 'preview-grid';
+
+        Array.from(files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = `
+                    <img src="${e.target.result}" alt="${file.name}">
+                    <small>${file.name}</small>
+                `;
+                grid.appendChild(item);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        preview.appendChild(grid);
+    }
+
+    showUploadVideoModal(albumId) {
+        const modal = document.createElement('div');
+        modal.className = 'media-modal active';
+        modal.innerHTML = `
+            <div class="media-modal-content upload-modal">
+                <div class="media-modal-header">
+                    <h2><i class="fas fa-video"></i> Adicionar Vídeo</h2>
+                    <button onclick="this.closest('.media-modal').remove()" class="modal-close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="media-modal-body">
+                    <form id="video-upload-form">
+                        <div class="form-group">
+                            <label for="video-url">URL do YouTube</label>
+                            <input type="url" id="video-url" placeholder="https://www.youtube.com/watch?v=..." required>
+                            <small>Cole o link do vídeo no YouTube</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="video-title">Título (opcional)</label>
+                            <input type="text" id="video-title" placeholder="Ex: Highlights da corrida">
+                        </div>
+                        <div class="form-group">
+                            <label for="video-description">Descrição (opcional)</label>
+                            <textarea id="video-description" rows="3" placeholder="Adicione uma descrição..."></textarea>
+                        </div>
+                        <button type="submit" class="upload-submit-btn">
+                            <i class="fas fa-plus"></i> Adicionar Vídeo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('video-upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.uploadVideo(albumId, modal);
+        });
+    }
+
+    async uploadPhotos(albumId, modal) {
+        const fileInput = document.getElementById('photo-file');
+        const title = document.getElementById('photo-title').value;
+
+        if (!fileInput.files.length) {
+            alert('Por favor, selecione pelo menos uma foto');
             return;
         }
 
-        localStorage.setItem('videos-drive-id', driveId);
+        const files = Array.from(fileInput.files);
+        const progressDiv = document.getElementById('photo-upload-progress');
+        const progressFill = document.getElementById('photo-progress-fill');
+        const progressText = document.getElementById('photo-progress-text');
+        const submitBtn = document.getElementById('upload-submit-btn');
 
-        const container = document.getElementById('videos-grid');
-        container.innerHTML = '<div class="loading-media"><i class="fas fa-spinner"></i><p>Carregando vídeos...</p></div>';
+        progressDiv.style.display = 'block';
+        submitBtn.disabled = true;
 
-        container.innerHTML = `
-            <div class="media-upload-info">
-                <h3>Configure manualmente seus vídeos:</h3>
-                <p><strong>ID da pasta:</strong> ${driveId}</p>
-                <p><strong>Link da pasta:</strong> <a href="https://drive.google.com/drive/folders/${driveId}" target="_blank">Abrir pasta no Google Drive</a></p>
-                <br>
-                <p><strong>Para incorporar vídeos:</strong></p>
-                <ol>
-                    <li>Abra o vídeo no Google Drive</li>
-                    <li>Clique nos 3 pontos → "Compartilhar" → "Obter link"</li>
-                    <li>Altere para "Qualquer pessoa com o link"</li>
-                    <li>Para vídeos, use o player incorporado do Google Drive</li>
-                </ol>
-            </div>
-            <div class="media-item">
-                <div style="position: relative; width: 100%; height: 200px; background: #f0f0f0; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                    <p style="text-align: center; color: #666;">
-                        <i class="fas fa-video" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
-                        Vídeo de exemplo<br>
-                        <small>Configure com seus próprios IDs</small>
-                    </p>
-                </div>
-                <div class="media-item-info">
-                    <h4>Melhores momentos</h4>
-                    <p>Grandes disputas na pista!</p>
-                </div>
-            </div>
-        `;
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const progress = ((i + 1) / files.length) * 100;
+
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `Enviando ${i + 1} de ${files.length}...`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', title || file.name);
+            formData.append('description', '');
+
+            try {
+                const response = await fetch(`/upload/photo/${albumId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    successCount++;
+                } else {
+                    errorCount++;
+                    console.error('Upload failed for', file.name, result.message);
+                }
+            } catch (error) {
+                errorCount++;
+                console.error('Upload error for', file.name, error);
+            }
+        }
+
+        progressFill.style.width = '100%';
+        progressText.textContent = `Concluído! ${successCount} foto(s) enviada(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}`;
+
+        setTimeout(() => {
+            modal.remove();
+            // Reload album
+            this.openAlbum(albumId);
+        }, 1500);
     }
 
-    openMediaOverlay(src) {
-        const overlay = document.createElement('div');
-        overlay.className = 'media-overlay active';
-        overlay.innerHTML = `
-            <span class="media-overlay-close" onclick="this.parentElement.remove()">&times;</span>
-            <div class="media-overlay-content">
-                <img src="${src}" alt="Foto ampliada" />
-            </div>
-        `;
-        document.body.appendChild(overlay);
+    async uploadVideo(albumId, modal) {
+        const url = document.getElementById('video-url').value;
+        const title = document.getElementById('video-title').value;
+        const description = document.getElementById('video-description').value;
+
+        try {
+            const response = await fetch(`/upload/video/${albumId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url, title, description })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                modal.remove();
+                // Reload album
+                this.openAlbum(albumId);
+            } else {
+                alert('Erro: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Erro ao adicionar vídeo');
+        }
     }
 
+    // Old localStorage functions - kept for backwards compatibility
+    loadDefaultPhotos() { return; }
+    displayRaceAlbums() { return; }
+    addRaceAlbum() { return; }
+    removeRaceAlbum() { return; }
+    async loadPhotos() { return; }
     async loadLocations() {
         try {
             const response = await fetch(`${this.apiBase}/locations`);
@@ -813,6 +1064,25 @@ class KartRaceTracker {
 // Global functions for onclick handlers
 function showSection(sectionName) {
     app.showSection(sectionName);
+
+    // Update sidebar nav active states
+    document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    const activeLink = document.querySelector(`.sidebar-nav-item[href="#${sectionName}"]`);
+    if (activeLink) {
+        activeLink.classList.add('active');
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    }
 }
 
 function showMediaTab(tabName) {
@@ -820,15 +1090,15 @@ function showMediaTab(tabName) {
     document.querySelectorAll('.media-tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
-    
+
     // Remove active class from all media tab buttons
     document.querySelectorAll('.media-tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Show selected tab
     document.getElementById(`${tabName}-tab`).classList.add('active');
-    
+
     // Add active class to corresponding button
     event.target.classList.add('active');
 }

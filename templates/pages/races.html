@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Corridas - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2>Todas as Corridas</h2>
+    <div id="races-list" class="races-list">
+        <!-- Races will be loaded here -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        app.loadRaces();
+    });
+</script>
+{% endblock %}

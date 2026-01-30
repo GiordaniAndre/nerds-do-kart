@@ -39,4 +39,5 @@ test_*.html
 photo_config.js
 
 # Railway deployment
-.railway/
+.railway/.env
+.env

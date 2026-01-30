@@ -1,0 +1,642 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Albuns{% endblock %}
+{% block page_title %}Gerenciar Albuns{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Novo Album
+    </button>
+</div>
+
+<div class="albums-grid">
+    {% for album in albums %}
+    <div class="album-card" data-id="{{ album.id }}">
+        <div class="album-cover">
+            {% if album.cover_url %}
+            <img src="{{ album.cover_url }}" alt="{{ album.name }}">
+            {% else %}
+            <div class="album-placeholder">
+                <i class="fas fa-images"></i>
+            </div>
+            {% endif %}
+        </div>
+        <div class="album-info">
+            <h3>{{ album.name }}</h3>
+            {% if album.race %}
+            <p class="album-race"><i class="fas fa-flag-checkered"></i> {{ album.race.race_name }}</p>
+            {% endif %}
+            <p class="album-description">{{ album.description or 'Sem descricao' }}</p>
+            {% if album.google_photos_link %}
+            <a href="{{ album.google_photos_link }}" target="_blank" class="album-link">
+                <i class="fas fa-external-link-alt"></i> Ver no Google Photos
+            </a>
+            {% endif %}
+            <p class="album-count"><i class="fas fa-photo-video"></i> {{ album.media_items|length }} itens</p>
+        </div>
+        <div class="album-actions">
+            <button class="btn btn-sm btn-info" onclick="openMediaModal({{ album.id }}, '{{ album.name }}')">
+                <i class="fas fa-photo-video"></i> Midias
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick='openEditModal({{ album.id }}, {{ album.to_dict()|tojson }})'>
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ album.id }}, '{{ album.name }}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-albums">
+        <i class="fas fa-images"></i>
+        <h3>Nenhum album cadastrado ainda</h3>
+        <p>Crie um album para começar a adicionar fotos e videos!</p>
+        <div class="empty-albums-help">
+            <h4><i class="fas fa-info-circle"></i> Como funciona:</h4>
+            <ol>
+                <li><strong>Clique em "Novo Album"</strong> acima para criar um album</li>
+                <li><strong>Depois de criar,</strong> clique no botão <span class="btn-example"><i class="fas fa-photo-video"></i> Midias</span> do album</li>
+                <li><strong>Adicione fotos e videos</strong> usando URLs (YouTube, Google Drive, etc.)</li>
+                <li><strong>Pronto!</strong> As midias aparecem no site automaticamente</li>
+            </ol>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Create/Edit Form Template -->
+<template id="album-form-template">
+    <form id="album-form" onsubmit="saveAlbum(event)">
+        <input type="hidden" id="album-id" name="id">
+        <div class="form-group">
+            <label for="album-name">Nome *</label>
+            <input type="text" id="album-name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="album-description">Descricao</label>
+            <textarea id="album-description" name="description" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="album-race">Corrida Relacionada</label>
+            <select id="album-race" name="race_id">
+                <option value="">Nenhuma</option>
+                {% for race in races %}
+                <option value="{{ race.id }}">{{ race.race_name }} ({{ race.date.strftime('%d/%m/%Y') if race.date else 'Sem data' }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="album-cover">URL da Capa</label>
+            <input type="url" id="album-cover" name="cover_url" placeholder="https://...">
+        </div>
+        <div class="form-group">
+            <label for="album-photos">Link do Google Photos</label>
+            <input type="url" id="album-photos" name="google_photos_link" placeholder="https://photos.app.goo.gl/...">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+<!-- Media Management Template -->
+<template id="media-form-template">
+    <div class="media-manager">
+        <!-- File Upload Section -->
+        <div class="file-upload-section">
+            <h4><i class="fas fa-cloud-upload-alt"></i> Upload de Fotos</h4>
+            <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+                <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/gif,image/webp" style="display: none;" onchange="handleFileSelect(event)">
+                <div class="upload-prompt">
+                    <i class="fas fa-images"></i>
+                    <p><strong>Clique ou arraste fotos aqui</strong></p>
+                    <p class="upload-hint">Formatos: JPG, PNG, GIF, WebP</p>
+                    <p class="upload-hint">Maximo: 10MB por foto</p>
+                </div>
+            </div>
+            <div id="file-preview-grid" class="file-preview-grid"></div>
+            <div id="upload-progress" class="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="upload-status">Enviando...</p>
+            </div>
+        </div>
+
+        <div class="divider-or">
+            <span>OU</span>
+        </div>
+
+        <div class="media-add-form">
+            <h4><i class="fas fa-link"></i> Adicionar por URL</h4>
+            <form id="media-add-form" onsubmit="addMedia(event)">
+                <input type="hidden" id="media-album-id">
+
+                <div class="form-group">
+                    <label for="media-type">Tipo de Midia</label>
+                    <select id="media-type" name="media_type" required onchange="updateMediaPlaceholder()">
+                        <option value="photo">Foto</option>
+                        <option value="video">Video (YouTube, etc.)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="media-url">URL da Midia *</label>
+                    <input type="url" id="media-url" name="url" required placeholder="Cole a URL aqui...">
+                    <small class="url-hint" id="url-hint">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="hint-text">Cole a URL da foto (ex: Google Drive, Imgur, link direto)</span>
+                    </small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="media-title">Titulo</label>
+                        <input type="text" id="media-title" name="title" placeholder="Ex: Largada emocionante">
+                    </div>
+                    <div class="form-group">
+                        <label for="media-desc">Descricao</label>
+                        <input type="text" id="media-desc" name="description" placeholder="Ex: Primeira volta da corrida">
+                    </div>
+                </div>
+
+                <div class="url-examples">
+                    <strong>Exemplos de URLs aceitas:</strong>
+                    <ul id="url-examples-list">
+                        <li><strong>Fotos:</strong>
+                            <code>https://drive.google.com/uc?id=...</code>,
+                            <code>https://i.imgur.com/...</code>
+                        </li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Adicionar Midia
+                </button>
+            </form>
+        </div>
+
+        <div class="media-list-header">
+            <h4><i class="fas fa-photo-video"></i> Midias do Album</h4>
+        </div>
+        <div class="media-list" id="media-list">
+            <!-- Media items will be loaded here -->
+        </div>
+    </div>
+</template>
+
+<script>
+function updateMediaPlaceholder() {
+    const typeSelect = document.getElementById('media-type');
+    const urlInput = document.getElementById('media-url');
+    const hintText = document.getElementById('hint-text');
+    const examplesList = document.getElementById('url-examples-list');
+
+    if (typeSelect.value === 'video') {
+        urlInput.placeholder = 'Ex: https://www.youtube.com/watch?v=...';
+        hintText.textContent = 'Cole a URL do YouTube (qualquer formato)';
+        examplesList.innerHTML = `
+            <li><strong>YouTube:</strong>
+                <code>https://youtube.com/watch?v=ABC123</code>,
+                <code>https://youtu.be/ABC123</code>
+            </li>
+            <li><strong>Google Drive Video:</strong>
+                <code>https://drive.google.com/file/d/.../view</code>
+            </li>
+        `;
+    } else {
+        urlInput.placeholder = 'Ex: https://drive.google.com/uc?id=...';
+        hintText.textContent = 'Cole a URL da foto (Google Drive, Imgur, link direto)';
+        examplesList.innerHTML = `
+            <li><strong>Google Drive:</strong>
+                <code>https://drive.google.com/uc?id=...</code>
+            </li>
+            <li><strong>Imgur:</strong>
+                <code>https://i.imgur.com/ABC123.jpg</code>
+            </li>
+            <li><strong>Link Direto:</strong>
+                <code>https://exemplo.com/foto.jpg</code>
+            </li>
+        `;
+    }
+}
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityUrl = '/admin/albums';
+let currentAlbumMediaItems = [];
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Novo Album';
+    const template = document.getElementById('album-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('album-id').value = '';
+    openModal();
+}
+
+function openEditModal(id, album) {
+    document.getElementById('modal-title').textContent = 'Editar Album';
+    const template = document.getElementById('album-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('album-id').value = id;
+    document.getElementById('album-name').value = album.name || '';
+    document.getElementById('album-description').value = album.description || '';
+    document.getElementById('album-race').value = album.race_id || '';
+    document.getElementById('album-cover').value = album.cover_url || '';
+    document.getElementById('album-photos').value = album.google_photos_link || '';
+
+    openModal();
+}
+
+let currentAlbumId = null;
+
+function openMediaModal(albumId, albumName) {
+    currentAlbumId = albumId;
+    document.getElementById('modal-title').textContent = `Midias - ${albumName}`;
+    const template = document.getElementById('media-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('media-album-id').value = albumId;
+
+    // Setup drag and drop
+    setupDragAndDrop();
+
+    // Load media items for this album
+    loadMediaItems(albumId);
+
+    openModal();
+}
+
+function setupDragAndDrop() {
+    const uploadArea = document.getElementById('upload-area');
+    if (!uploadArea) return;
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.add('drag-over');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.remove('drag-over');
+        }, false);
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    }, false);
+}
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    showFilePreview(files);
+}
+
+function showFilePreview(files) {
+    const previewGrid = document.getElementById('file-preview-grid');
+    previewGrid.innerHTML = '';
+
+    if (files.length === 0) return;
+
+    const header = document.createElement('h4');
+    header.innerHTML = `<i class="fas fa-images"></i> ${files.length} foto(s) selecionada(s)`;
+    previewGrid.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'preview-grid-items';
+
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const item = document.createElement('div');
+            item.className = 'preview-thumb';
+            item.innerHTML = `
+                <img src="${e.target.result}" alt="${file.name}">
+                <small>${file.name}</small>
+            `;
+            grid.appendChild(item);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    previewGrid.appendChild(grid);
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn btn-primary upload-confirm-btn';
+    uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Enviar Fotos';
+    uploadBtn.onclick = () => handleFiles(files);
+    previewGrid.appendChild(uploadBtn);
+}
+
+async function handleFiles(files) {
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    const progressFill = document.getElementById('progress-fill');
+    const previewGrid = document.getElementById('file-preview-grid');
+
+    uploadProgress.style.display = 'block';
+    previewGrid.innerHTML = '';
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        uploadStatus.textContent = `Enviando ${i + 1} de ${files.length}: ${file.name}`;
+        progressFill.style.width = `${((i + 1) / files.length) * 100}%`;
+
+        try {
+            const result = await uploadFile(file);
+            if (result.success) {
+                await addMediaFromUpload(result.url, result.media_type, file.name);
+                successCount++;
+            }
+        } catch (error) {
+            errorCount++;
+            console.error('Upload error:', error);
+        }
+    }
+
+    progressFill.style.width = '100%';
+    uploadStatus.textContent = `Concluído! ${successCount} foto(s) enviada(s)${errorCount > 0 ? `, ${errorCount} erro(s)` : ''}`;
+
+    setTimeout(() => {
+        uploadProgress.style.display = 'none';
+        location.reload();
+    }, 2000);
+}
+
+async function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/admin/upload', {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao enviar arquivo');
+    }
+
+    return await response.json();
+}
+
+async function addMediaFromUpload(url, mediaType, filename) {
+    const title = filename.replace(/\.[^/.]+$/, ''); // Remove extension
+
+    const data = {
+        url: url,
+        media_type: mediaType,
+        title: title,
+        description: ''
+    };
+
+    const response = await fetch(`/admin/albums/${currentAlbumId}/media`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+        throw new Error('Erro ao adicionar midia ao album');
+    }
+
+    return await response.json();
+}
+
+function extractYouTubeId(url) {
+    if (!url) return null;
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /^([a-zA-Z0-9_-]{11})$/
+    ];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+    }
+    return null;
+}
+
+function loadMediaItems(albumId) {
+    const mediaList = document.getElementById('media-list');
+    mediaList.innerHTML = '<p class="loading">Carregando...</p>';
+
+    // Fetch both media items and album info to check cover
+    Promise.all([
+        fetch(`/admin/api/albums/${albumId}/media`).then(r => r.json()),
+        fetch(`/admin/albums/${albumId}`).then(r => r.json())
+    ])
+        .then(([mediaItems, albumData]) => {
+            const coverUrl = albumData.cover_url;
+
+            if (mediaItems.length === 0) {
+                mediaList.innerHTML = '<p class="media-info">Nenhuma midia adicionada ainda. Use o formulario acima para adicionar.</p>';
+            } else {
+                mediaList.innerHTML = '<div class="media-grid">' + mediaItems.map(item => {
+                    item.is_cover = (item.url === coverUrl);
+                    let previewHtml;
+
+                    if (item.media_type === 'video') {
+                        const youtubeId = extractYouTubeId(item.url);
+                        if (youtubeId) {
+                            previewHtml = `
+                                <img src="https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg" alt="${item.title || 'Video'}">
+                                <div class="video-play-icon"><i class="fas fa-play-circle"></i></div>
+                            `;
+                        } else {
+                            previewHtml = `<div class="video-preview"><i class="fas fa-video"></i></div>`;
+                        }
+                    } else {
+                        previewHtml = `<img src="${item.url}" alt="${item.title || 'Media'}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22>Imagem</text></svg>'">`;
+                    }
+
+                    return `
+                        <div class="media-item ${item.is_cover ? 'is-cover' : ''}" data-id="${item.id}">
+                            <div class="media-preview">
+                                ${previewHtml}
+                                ${item.is_cover ? '<div class="cover-badge"><i class="fas fa-star"></i> Capa</div>' : ''}
+                            </div>
+                            <div class="media-details">
+                                <p class="media-title">${item.title || 'Sem titulo'}</p>
+                                <p class="media-type"><i class="fas fa-${item.media_type === 'photo' ? 'image' : 'video'}"></i> ${item.media_type === 'photo' ? 'Foto' : 'Video'}</p>
+                                ${item.description ? `<p class="media-desc">${item.description}</p>` : ''}
+                            </div>
+                            <div class="media-actions">
+                                ${item.media_type === 'photo' && !item.is_cover ? `
+                                    <button class="btn btn-sm btn-warning" onclick="setAlbumCover(${currentAlbumId}, ${item.id}, '${item.url}')" title="Definir como Capa">
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                ` : ''}
+                                <a href="${item.url}" target="_blank" class="btn btn-sm btn-info" title="Abrir">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                <button class="btn btn-sm btn-danger" onclick="deleteMedia(${item.id})" title="Excluir">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('') + '</div>';
+            }
+        })
+        .catch(error => {
+            mediaList.innerHTML = '<p class="error">Erro ao carregar midias</p>';
+            console.error(error);
+        });
+}
+
+function addMedia(event) {
+    event.preventDefault();
+    const albumId = document.getElementById('media-album-id').value;
+    const form = document.getElementById('media-add-form');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch(`/admin/albums/${albumId}/media`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            form.reset();
+            // Reload to show updated count
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao adicionar midia', 'error');
+        console.error(error);
+    });
+}
+
+function setAlbumCover(albumId, mediaId, url) {
+    fetch(`/admin/albums/${albumId}/set-cover`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ media_id: mediaId, cover_url: url })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification('Capa do album atualizada!', 'success');
+            loadMediaItems(albumId);
+        } else {
+            showNotification(result.message || 'Erro ao definir capa', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao definir capa', 'error');
+        console.error(error);
+    });
+}
+
+function deleteMedia(mediaId) {
+    if (!confirm('Tem certeza que deseja excluir esta midia?')) return;
+
+    fetch(`/admin/media/${mediaId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir midia', 'error');
+        console.error(error);
+    });
+}
+
+function saveAlbum(event) {
+    event.preventDefault();
+    const form = document.getElementById('album-form');
+    const id = document.getElementById('album-id').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar album', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir o album "${name}"? Todas as midias serao excluidas tambem.`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteAlbum(id);
+    openDeleteModal();
+}
+
+function deleteAlbum(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir album', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

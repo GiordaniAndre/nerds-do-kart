@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Pilotos - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2>Pilotos</h2>
+    <div class="search-container">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" id="racer-search" placeholder="Buscar piloto..." oninput="app.filterRacers(this.value)">
+        </div>
+    </div>
+    <div id="racers-grid" class="racers-grid">
+        <!-- Racers will be loaded here -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        app.loadRacers();
+    });
+</script>
+{% endblock %}

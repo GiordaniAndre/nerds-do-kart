@@ -1,0 +1,242 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Locais{% endblock %}
+{% block page_title %}Gerenciar Locais{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Novo Local
+    </button>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Cidade</th>
+                <th>Bairro</th>
+                <th>Preco/Pessoa</th>
+                <th>Participantes</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for location in locations %}
+            <tr data-id="{{ location.id }}">
+                <td>{{ location.id }}</td>
+                <td>{{ location.name }}</td>
+                <td>{{ location.city or '-' }}</td>
+                <td>{{ location.neighborhood or '-' }}</td>
+                <td>{{ 'R$ %.2f'|format(location.price_per_person) if location.price_per_person else '-' }}</td>
+                <td>{{ location.min_participants or '?' }}-{{ location.max_participants or '?' }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-secondary" onclick='openEditModal({{ location.id }}, {{ location.to_dict()|tojson }})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ location.id }}, '{{ location.name }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="empty-message">Nenhum local cadastrado</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create/Edit Form Template -->
+<template id="location-form-template">
+    <form id="location-form" onsubmit="saveLocation(event)">
+        <input type="hidden" id="location-id" name="id">
+        <div class="form-group">
+            <label for="location-name">Nome *</label>
+            <input type="text" id="location-name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="location-description">Descricao</label>
+            <textarea id="location-description" name="description" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="location-address">Endereco</label>
+                <input type="text" id="location-address" name="address">
+            </div>
+            <div class="form-group">
+                <label for="location-neighborhood">Bairro</label>
+                <input type="text" id="location-neighborhood" name="neighborhood">
+            </div>
+            <div class="form-group">
+                <label for="location-city">Cidade</label>
+                <input type="text" id="location-city" name="city">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="location-price">Preco por Pessoa (R$)</label>
+                <input type="number" id="location-price" name="price_per_person" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label for="location-duration">Duracao do Aluguel</label>
+                <input type="text" id="location-duration" name="rental_duration" placeholder="Ex: 30 minutos">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="location-min">Min. Participantes</label>
+                <input type="number" id="location-min" name="min_participants" min="1">
+            </div>
+            <div class="form-group">
+                <label for="location-max">Max. Participantes</label>
+                <input type="number" id="location-max" name="max_participants" min="1">
+            </div>
+            <div class="form-group">
+                <label for="location-height">Altura Minima</label>
+                <input type="text" id="location-height" name="min_height" placeholder="Ex: 1.50m">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="location-weekday">Horario Semana</label>
+                <input type="text" id="location-weekday" name="schedule_weekday" placeholder="Ex: 18h-22h">
+            </div>
+            <div class="form-group">
+                <label for="location-saturday">Horario Sabado</label>
+                <input type="text" id="location-saturday" name="schedule_saturday" placeholder="Ex: 10h-22h">
+            </div>
+            <div class="form-group">
+                <label for="location-sunday">Horario Domingo</label>
+                <input type="text" id="location-sunday" name="schedule_sunday" placeholder="Ex: 10h-20h">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="location-instagram">Instagram</label>
+                <input type="text" id="location-instagram" name="instagram" placeholder="@kartodromo">
+            </div>
+            <div class="form-group">
+                <label for="location-website">Website</label>
+                <input type="url" id="location-website" name="website" placeholder="https://...">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="location-thumbnail">URL da Imagem</label>
+            <input type="url" id="location-thumbnail" name="thumbnail_url" placeholder="https://...">
+        </div>
+        <div class="form-group">
+            <label for="location-exclusive">Informacoes Exclusivas</label>
+            <textarea id="location-exclusive" name="exclusive_info" rows="2"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityUrl = '/admin/locations';
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Novo Local';
+    const template = document.getElementById('location-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('location-id').value = '';
+    openModal();
+}
+
+function openEditModal(id, location) {
+    document.getElementById('modal-title').textContent = 'Editar Local';
+    const template = document.getElementById('location-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('location-id').value = id;
+    document.getElementById('location-name').value = location.name || '';
+    document.getElementById('location-description').value = location.description || '';
+    document.getElementById('location-address').value = location.address || '';
+    document.getElementById('location-neighborhood').value = location.neighborhood || '';
+    document.getElementById('location-city').value = location.city || '';
+    document.getElementById('location-price').value = location.price_per_person || '';
+    document.getElementById('location-duration').value = location.rental_duration || '';
+    document.getElementById('location-min').value = location.min_participants || '';
+    document.getElementById('location-max').value = location.max_participants || '';
+    document.getElementById('location-height').value = location.min_height || '';
+    document.getElementById('location-weekday').value = location.schedule_weekday || '';
+    document.getElementById('location-saturday').value = location.schedule_saturday || '';
+    document.getElementById('location-sunday').value = location.schedule_sunday || '';
+    document.getElementById('location-instagram').value = location.instagram || '';
+    document.getElementById('location-website').value = location.website || '';
+    document.getElementById('location-thumbnail').value = location.thumbnail_url || '';
+    document.getElementById('location-exclusive').value = location.exclusive_info || '';
+
+    openModal();
+}
+
+function saveLocation(event) {
+    event.preventDefault();
+    const form = document.getElementById('location-form');
+    const id = document.getElementById('location-id').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar local', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir o local "${name}"?`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteLocation(id);
+    openDeleteModal();
+}
+
+function deleteLocation(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir local', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Fotos & Vídeos - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2><i class="fas fa-camera"></i> Fotos & Vídeos</h2>
+
+    <div class="media-tabs">
+        <button class="media-tab-btn active" onclick="showMediaTab('albums')">
+            <i class="fas fa-folder"></i> Álbuns
+        </button>
+        <button class="media-tab-btn" onclick="showMediaTab('photos')">
+            <i class="fas fa-images"></i> Fotos
+        </button>
+        <button class="media-tab-btn" onclick="showMediaTab('videos')">
+            <i class="fas fa-video"></i> Vídeos
+        </button>
+    </div>
+
+    <div id="albums-tab" class="media-tab-content active">
+        <div id="albums-grid" class="media-grid">
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando álbuns...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="photos-tab" class="media-tab-content">
+        <div id="photos-by-race-container" class="photos-by-race-container">
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando fotos...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="videos-tab" class="media-tab-content">
+        <div id="videos-grid" class="media-grid">
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando vídeos...</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    // Set authentication status
+    app.isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+
+    function showMediaTab(tabName) {
+        // Hide all media tabs
+        document.querySelectorAll('.media-tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Remove active class from all media tab buttons
+        document.querySelectorAll('.media-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Show selected tab
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        // Add active class to corresponding button
+        if (event && event.target) {
+            event.target.classList.add('active');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        app.initMediaSection();
+    });
+</script>
+{% endblock %}

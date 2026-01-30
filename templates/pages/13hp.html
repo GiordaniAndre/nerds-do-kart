@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}13HP - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2><i class="fas fa-tachometer-alt"></i> Programa 13HP</h2>
+
+    <div class="hp-info-cards">
+        <div class="hp-info-card">
+            <div class="hp-info-icon">
+                <i class="fas fa-flag-checkered"></i>
+            </div>
+            <h3>Requisitos Minimos</h3>
+            <ul class="hp-requirements">
+                <li><strong>VP1000:</strong> Minimo de 3 corridas</li>
+                <li><strong>VP1500:</strong> Minimo de 3 corridas</li>
+                <li><strong>Curso:</strong> Certificacao obrigatoria</li>
+            </ul>
+        </div>
+
+        <div class="hp-info-card">
+            <div class="hp-info-icon">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h3>Curso de Certificacao</h3>
+            <p>Para pilotar os karts de 13HP, e necessario completar o curso de certificacao que inclui:</p>
+            <ul class="hp-requirements">
+                <li>Aula teorica sobre seguranca</li>
+                <li>Treinamento pratico supervisionado</li>
+                <li>Avaliacao de habilidades</li>
+            </ul>
+        </div>
+
+        <div class="hp-info-card">
+            <div class="hp-info-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3>Informacoes Importantes</h3>
+            <ul class="hp-requirements">
+                <li>Uso obrigatorio de equipamentos de seguranca</li>
+                <li>Respeitar limites de velocidade nas curvas</li>
+                <li>Seguir instrucoes dos fiscais de pista</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="hp-progress-section">
+        <h3><i class="fas fa-users"></i> Progresso dos Pilotos Interessados</h3>
+        <div id="hp-stats-container" class="hp-stats-container">
+            <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando estatisticas...</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        load13hpStats();
+    });
+
+    async function load13hpStats() {
+        try {
+            const response = await fetch('/api/13hp/stats');
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                render13hpStats(result.data);
+                // Log debug info to console
+                if (result.debug) {
+                    console.log('Locations matched for VP1000:', result.debug.vp1000_locations);
+                    console.log('Locations matched for VP1500:', result.debug.vp1500_locations);
+                }
+            } else {
+                showError(result.message);
+            }
+        } catch (error) {
+            console.error('Error loading 13hp stats:', error);
+            showError('Erro ao carregar estatisticas');
+        }
+    }
+
+    function render13hpStats(stats) {
+        const container = document.getElementById('hp-stats-container');
+
+        if (stats.length === 0) {
+            container.innerHTML = '<p class="no-data">Nenhum piloto interessado em 13HP ainda.</p>';
+            return;
+        }
+
+        const minVP1000 = 3;
+        const minVP1500 = 3;
+
+        container.innerHTML = `
+            <table class="hp-stats-table">
+                <thead>
+                    <tr>
+                        <th>Piloto</th>
+                        <th>VP1000</th>
+                        <th>VP1500</th>
+                        <th>Total Corridas</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${stats.map(stat => {
+                        const vp1000Ok = stat.vp1000_races >= minVP1000;
+                        const vp1500Ok = stat.vp1500_races >= minVP1500;
+                        const eligible = vp1000Ok && vp1500Ok;
+                        const hasPermission = stat.has_permission;
+
+                        return `
+                            <tr>
+                                <td><strong>${stat.racer_name}</strong></td>
+                                <td>
+                                    <span class="race-count ${vp1000Ok || hasPermission ? 'count-ok' : 'count-pending'}">
+                                        ${stat.vp1000_races}/${minVP1000}
+                                    </span>
+                                    ${vp1000Ok || hasPermission ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-clock text-warning"></i>'}
+                                </td>
+                                <td>
+                                    <span class="race-count ${vp1500Ok || hasPermission ? 'count-ok' : 'count-pending'}">
+                                        ${stat.vp1500_races}/${minVP1500}
+                                    </span>
+                                    ${vp1500Ok || hasPermission ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-clock text-warning"></i>'}
+                                </td>
+                                <td>${stat.total_races}</td>
+                                <td>
+                                    ${hasPermission
+                                        ? '<span class="status-badge status-enabled"><i class="fas fa-check-circle"></i> Habilitado</span>'
+                                        : (eligible
+                                            ? '<span class="status-badge status-eligible"><i class="fas fa-check"></i> Elegivel</span>'
+                                            : '<span class="status-badge status-pending"><i class="fas fa-hourglass-half"></i> Em progresso</span>'
+                                        )
+                                    }
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function showError(message) {
+        const container = document.getElementById('hp-stats-container');
+        container.innerHTML = `<p class="error-message">${message}</p>`;
+    }
+</script>
+{% endblock %}

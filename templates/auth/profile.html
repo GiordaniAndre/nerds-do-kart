@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil - Nerds do Kart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .profile-container {
+            max-width: 700px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .profile-section {
+            background: rgba(0, 136, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(0, 136, 255, 0.1);
+        }
+        .profile-section h3 {
+            color: #0088FF;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        .racer-info {
+            background: linear-gradient(135deg, rgba(255, 0, 102, 0.05) 0%, rgba(0, 136, 255, 0.05) 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid rgba(0, 136, 255, 0.2);
+        }
+        .racer-info h4 {
+            color: #0088FF;
+            margin-bottom: 10px;
+        }
+        .racer-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 136, 255, 0.1);
+            border-radius: 6px;
+        }
+        .stat-item strong {
+            display: block;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #FF0066 0%, #0088FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-item span {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(255, 0, 102, 0.05) 0%, rgba(0, 136, 255, 0.05) 100%);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid rgba(0, 136, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #FF0066;
+        }
+        .checkbox-container label {
+            cursor: pointer;
+            flex: 1;
+            color: #333;
+        }
+        .checkbox-container:hover {
+            background: linear-gradient(135deg, rgba(255, 0, 102, 0.1) 0%, rgba(0, 136, 255, 0.1) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 136, 255, 0.2);
+        }
+        .info-text {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+        #racer-fields {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 136, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #0088FF;
+        }
+        #racer-fields h4 {
+            color: #0088FF;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group textarea {
+            padding: 0.9rem 1rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            resize: vertical;
+        }
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #FF0066;
+            box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+        }
+        .form-group select {
+            padding: 0.9rem 1rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .form-group select:focus {
+            outline: none;
+            border-color: #FF0066;
+            box-shadow: 0 0 5px rgba(255, 0, 102, 0.3);
+        }
+        .auth-header i {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #FF0066 0%, #0088FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Menu -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="sidebar-logo">
+            <h2>Nerds do Kart</h2>
+            <button class="sidebar-close" onclick="toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-nav-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Painel</span>
+            </a>
+            <a href="{{ url_for('racers') }}" class="sidebar-nav-item">
+                <i class="fas fa-users"></i>
+                <span>Pilotos</span>
+            </a>
+            <a href="{{ url_for('races') }}" class="sidebar-nav-item">
+                <i class="fas fa-trophy"></i>
+                <span>Corridas</span>
+            </a>
+            <a href="{{ url_for('leaderboard') }}" class="sidebar-nav-item">
+                <i class="fas fa-medal"></i>
+                <span>Classificação</span>
+            </a>
+            <a href="{{ url_for('media') }}" class="sidebar-nav-item">
+                <i class="fas fa-camera"></i>
+                <span>Fotos & Vídeos</span>
+            </a>
+            <a href="{{ url_for('locations') }}" class="sidebar-nav-item">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>Locais</span>
+            </a>
+            {% if current_user.interested_in_13hp %}
+            <a href="{{ url_for('thirteenhp') }}" class="sidebar-nav-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>13HP</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="{{ url_for('auth.profile') }}" class="sidebar-nav-item active">
+                <i class="fas fa-user-circle"></i>
+                <span>Perfil</span>
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.dashboard') }}" class="sidebar-nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Admin</span>
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <header class="header">
+        <div class="container">
+            <button class="hamburger-menu" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-center">
+                <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="logo">
+                <div class="header-title">
+                    <h1><i class="fas fa-flag-checkered"></i> Nerds do Kart</h1>
+                    <p>Meu Perfil</p>
+                </div>
+            </div>
+            <div class="header-auth">
+                <a href="{{ url_for('auth.profile') }}" class="auth-header-btn profile-btn">
+                    <i class="fas fa-user-circle"></i> {{ current_user.name }}
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="auth-header-btn logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="auth-card profile-container" style="margin: 0 auto;">
+            <div class="auth-header">
+                <i class="fas fa-user-circle"></i>
+                <h2>Meu Perfil</h2>
+                <p>Gerencie suas informações e preferências</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="auth-form">
+                <!-- Informações Básicas -->
+                <div class="profile-section">
+                    <h3><i class="fas fa-user"></i> Informações Básicas</h3>
+
+                    <div class="form-group">
+                        <label for="name">Nome Completo</label>
+                        <input type="text" id="name" name="name" value="{{ current_user.name }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" value="{{ current_user.email }}" disabled>
+                        <small class="info-text">O email não pode ser alterado</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bio">Sobre Você</label>
+                        <textarea id="bio" name="bio" rows="3" placeholder="Conte um pouco sobre você...">{{ current_user.bio or '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Perfil de Piloto -->
+                <div class="profile-section">
+                    <h3><i class="fas fa-flag-checkered"></i> Perfil de Piloto</h3>
+
+                    <div class="form-group">
+                        <label for="racer_id">Vincular ao Piloto</label>
+                        <select id="racer_id" name="racer_id" onchange="toggleRacerFields()">
+                            <option value="">Não sou piloto</option>
+                            <option value="new" {% if not current_user.racer_id %}selected{% endif %}>Criar novo perfil de piloto</option>
+                            {% for racer in racers %}
+                            <option value="{{ racer.id }}" {% if current_user.racer_id == racer.id %}selected{% endif %}>
+                                {{ racer.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="info-text">Vincule sua conta a um perfil de piloto existente ou crie um novo</small>
+                    </div>
+
+                    {% if user_racer %}
+                    <div class="racer-info">
+                        <h4><i class="fas fa-trophy"></i> Estatísticas Atuais</h4>
+                        <div class="racer-stats">
+                            <div class="stat-item">
+                                <strong>{{ user_racer.total_races or 0 }}</strong>
+                                <span>Corridas</span>
+                            </div>
+                            <div class="stat-item">
+                                <strong>{{ user_racer.wins or 0 }}</strong>
+                                <span>Vitórias</span>
+                            </div>
+                            <div class="stat-item">
+                                <strong>{{ user_racer.podium_finishes or 0 }}</strong>
+                                <span>Pódios</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div id="racer-fields" style="display: none;">
+                        <h4>Informações do Piloto</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="age">Idade</label>
+                                <input type="number" id="age" name="age" min="0" max="120"
+                                       value="{{ user_racer.age if user_racer else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="experience_years">Anos de Experiência</label>
+                                <input type="number" id="experience_years" name="experience_years" min="0"
+                                       value="{{ user_racer.experience_years if user_racer else '0' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferências 13HP -->
+                <div class="profile-section">
+                    <h3><i class="fas fa-tachometer-alt"></i> Programa 13HP</h3>
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="interested_in_13hp" name="interested_in_13hp"
+                               {% if current_user.interested_in_13hp or current_user.has_13hp_permission %}checked{% endif %}
+                               {% if current_user.has_13hp_permission %}disabled{% endif %}>
+                        <label for="interested_in_13hp">
+                            <strong>Interessado em Kart 13HP</strong>
+                            <div class="info-text">Marque se voce tem interesse em pilotar karts mais potentes (13HP)</div>
+                        </label>
+                    </div>
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="has_13hp_permission" name="has_13hp_permission"
+                               {% if current_user.has_13hp_permission %}checked{% endif %}>
+                        <label for="has_13hp_permission">
+                            <strong>Ja tenho permissao para 13HP</strong>
+                            <div class="info-text">Marque se voce ja completou os requisitos e possui permissao para pilotar 13HP</div>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="auth-btn">
+                    <i class="fas fa-save"></i> Salvar Alterações
+                </button>
+
+                <div class="auth-links">
+                    <a href="{{ url_for('dashboard') }}">
+                        <i class="fas fa-arrow-left"></i> Voltar ao Site
+                    </a>
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin.dashboard') }}">
+                        <i class="fas fa-cog"></i> Painel Admin
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Nerds do Kart. Acelera!</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        function toggleRacerFields() {
+            const racerId = document.getElementById('racer_id').value;
+            const racerFields = document.getElementById('racer-fields');
+
+            // Show fields if creating new or has existing racer
+            if (racerId === 'new' || (racerId && racerId !== '')) {
+                racerFields.style.display = 'block';
+            } else {
+                racerFields.style.display = 'none';
+            }
+        }
+
+        function toggle13hpInterest() {
+            const permissionCheckbox = document.getElementById('has_13hp_permission');
+            const interestedCheckbox = document.getElementById('interested_in_13hp');
+
+            if (permissionCheckbox.checked) {
+                interestedCheckbox.checked = true;
+                interestedCheckbox.disabled = true;
+            } else {
+                interestedCheckbox.disabled = false;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleRacerFields();
+            toggle13hpInterest();
+            document.getElementById('has_13hp_permission').addEventListener('change', toggle13hpInterest);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Nerds do Kart{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar Menu -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="sidebar-logo">
+            <h2>Nerds do Kart</h2>
+            <button class="sidebar-close" onclick="toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Painel</span>
+            </a>
+            <a href="{{ url_for('racers') }}" class="sidebar-nav-item {% if request.endpoint == 'racers' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Pilotos</span>
+            </a>
+            <a href="{{ url_for('races') }}" class="sidebar-nav-item {% if request.endpoint == 'races' %}active{% endif %}">
+                <i class="fas fa-trophy"></i>
+                <span>Corridas</span>
+            </a>
+            <a href="{{ url_for('leaderboard') }}" class="sidebar-nav-item {% if request.endpoint == 'leaderboard' %}active{% endif %}">
+                <i class="fas fa-medal"></i>
+                <span>Classificação</span>
+            </a>
+            <a href="{{ url_for('media') }}" class="sidebar-nav-item {% if request.endpoint == 'media' %}active{% endif %}">
+                <i class="fas fa-camera"></i>
+                <span>Fotos & Vídeos</span>
+            </a>
+            <a href="{{ url_for('locations') }}" class="sidebar-nav-item {% if request.endpoint == 'locations' %}active{% endif %}">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>Locais</span>
+            </a>
+            {% if current_user.is_authenticated and current_user.interested_in_13hp %}
+            <a href="{{ url_for('thirteenhp') }}" class="sidebar-nav-item hp-nav-item {% if request.endpoint == 'thirteenhp' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>13HP</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.profile') }}" class="sidebar-nav-item {% if request.endpoint == 'auth.profile' %}active{% endif %}">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Perfil</span>
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin.dashboard') }}" class="sidebar-nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Admin</span>
+                </a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </aside>
+
+    <header class="header">
+        <div class="container">
+            <button class="hamburger-menu" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-center">
+                <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="logo">
+                <div class="header-title">
+                    <h1><i class="fas fa-flag-checkered"></i> Nerds do Kart</h1>
+                    <p>{% block header_subtitle %}Dados de corridas dos Nerds do Kart!{% endblock %}</p>
+                </div>
+            </div>
+            <div class="header-auth">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.profile') }}" class="auth-header-btn profile-btn">
+                        <i class="fas fa-user-circle"></i> {{ current_user.name }}
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="auth-header-btn logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="auth-header-btn">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="auth-header-btn">
+                        <i class="fas fa-user-plus"></i> Criar Conta
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Nerds do Kart. Acelera!</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            }
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

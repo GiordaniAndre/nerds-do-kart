@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Campeonato - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2>Estatísticas do Campeonato (Pontos Corridos)</h2>
+    <div id="standings-table" class="table-container">
+        <!-- Standings will be loaded here -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        app.loadStandings();
+    });
+</script>
+{% endblock %}

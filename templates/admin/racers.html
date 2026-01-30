@@ -1,0 +1,316 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Pilotos{% endblock %}
+{% block page_title %}Gerenciar Pilotos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-buttons">
+        <button class="btn btn-info" onclick="recalculateStats()">
+            <i class="fas fa-calculator"></i> Recalcular Estatisticas
+        </button>
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Novo Piloto
+        </button>
+    </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+<div class="bulk-actions-bar" id="bulk-actions-bar" style="display: none;">
+    <div class="bulk-actions-info">
+        <span id="selected-count">0</span> piloto(s) selecionado(s)
+    </div>
+    <div class="bulk-actions-buttons">
+        <button class="btn btn-danger btn-sm" onclick="bulkDelete()">
+            <i class="fas fa-trash"></i> Excluir Selecionados
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">
+            <i class="fas fa-times"></i> Limpar Selecao
+        </button>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="checkbox-column">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                </th>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Idade</th>
+                <th>Experiencia (anos)</th>
+                <th>Total Corridas</th>
+                <th>Vitorias</th>
+                <th>Podios</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for racer in racers %}
+            <tr data-id="{{ racer.id }}">
+                <td class="checkbox-column">
+                    <input type="checkbox" class="racer-checkbox" value="{{ racer.id }}" onchange="updateSelection()">
+                </td>
+                <td>{{ racer.id }}</td>
+                <td>{{ racer.name }}</td>
+                <td>{{ racer.age or '-' }}</td>
+                <td>{{ racer.experience_years or 0 }}</td>
+                <td>{{ racer.total_races or 0 }}</td>
+                <td>{{ racer.wins or 0 }}</td>
+                <td>{{ racer.podium_finishes or 0 }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-secondary" onclick="openEditModal({{ racer.id }}, '{{ racer.name }}', {{ racer.age or 'null' }}, {{ racer.experience_years or 0 }}, {{ racer.total_races or 0 }}, {{ racer.wins or 0 }}, {{ racer.podium_finishes or 0 }})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ racer.id }}, '{{ racer.name }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="empty-message">Nenhum piloto cadastrado</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create/Edit Form Template -->
+<template id="racer-form-template">
+    <form id="racer-form" onsubmit="saveRacer(event)">
+        <input type="hidden" id="racer-id" name="id">
+        <div class="form-group">
+            <label for="racer-name">Nome *</label>
+            <input type="text" id="racer-name" name="name" required>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="racer-age">Idade</label>
+                <input type="number" id="racer-age" name="age" min="0">
+            </div>
+            <div class="form-group">
+                <label for="racer-experience">Experiencia (anos)</label>
+                <input type="number" id="racer-experience" name="experience_years" min="0" value="0">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="racer-races">Total Corridas</label>
+                <input type="number" id="racer-races" name="total_races" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="racer-wins">Vitorias</label>
+                <input type="number" id="racer-wins" name="wins" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="racer-podiums">Podios</label>
+                <input type="number" id="racer-podiums" name="podium_finishes" min="0" value="0">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityName = 'racer';
+const entityUrl = '/admin/racers';
+
+// Recalculate statistics
+function recalculateStats() {
+    if (!confirm('Isso vai recalcular vitorias, podios e total de corridas para todos os pilotos baseado nos resultados. Continuar?')) {
+        return;
+    }
+
+    fetch(`${entityUrl}/recalculate-stats`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao recalcular estatisticas', 'error');
+        console.error(error);
+    });
+}
+
+// Bulk selection functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.racer-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelection();
+}
+
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.racer-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkActionsBar = document.getElementById('bulk-actions-bar');
+    const selectedCount = document.getElementById('selected-count');
+    const selectAll = document.getElementById('select-all');
+
+    selectedCount.textContent = count;
+
+    if (count > 0) {
+        bulkActionsBar.style.display = 'flex';
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.racer-checkbox');
+    selectAll.checked = allCheckboxes.length > 0 && allCheckboxes.length === count;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.racer-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    document.getElementById('select-all').checked = false;
+    updateSelection();
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.racer-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+function bulkDelete() {
+    const racerIds = getSelectedIds();
+    if (racerIds.length === 0) {
+        showNotification('Selecione pelo menos um piloto', 'error');
+        return;
+    }
+
+    if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE ${racerIds.length} piloto(s)? Pilotos com resultados nao serao excluidos.`)) {
+        return;
+    }
+
+    fetch(`${entityUrl}/bulk-delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            racer_ids: racerIds
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao processar operacao', 'error');
+        console.error(error);
+    });
+}
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Novo Piloto';
+    const template = document.getElementById('racer-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('racer-id').value = '';
+    openModal();
+}
+
+function openEditModal(id, name, age, experience, races, wins, podiums) {
+    document.getElementById('modal-title').textContent = 'Editar Piloto';
+    const template = document.getElementById('racer-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('racer-id').value = id;
+    document.getElementById('racer-name').value = name;
+    document.getElementById('racer-age').value = age || '';
+    document.getElementById('racer-experience').value = experience || 0;
+    document.getElementById('racer-races').value = races || 0;
+    document.getElementById('racer-wins').value = wins || 0;
+    document.getElementById('racer-podiums').value = podiums || 0;
+
+    openModal();
+}
+
+function saveRacer(event) {
+    event.preventDefault();
+    const form = document.getElementById('racer-form');
+    const id = document.getElementById('racer-id').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar piloto', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir o piloto "${name}"?`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteRacer(id);
+    openDeleteModal();
+}
+
+function deleteRacer(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir piloto', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

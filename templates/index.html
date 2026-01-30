@@ -8,39 +8,97 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Sidebar Menu -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="sidebar-logo">
+            <h2>Nerds do Kart</h2>
+            <button class="sidebar-close" onclick="toggleSidebar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="sidebar-nav-item active" onclick="event.preventDefault(); showSection('dashboard'); toggleSidebar();">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Painel</span>
+            </a>
+            <a href="#racers" class="sidebar-nav-item" onclick="event.preventDefault(); showSection('racers'); toggleSidebar();">
+                <i class="fas fa-users"></i>
+                <span>Pilotos</span>
+            </a>
+            <a href="#races" class="sidebar-nav-item" onclick="event.preventDefault(); showSection('races'); toggleSidebar();">
+                <i class="fas fa-trophy"></i>
+                <span>Corridas</span>
+            </a>
+            <a href="#leaderboard" class="sidebar-nav-item" onclick="event.preventDefault(); showSection('leaderboard'); toggleSidebar();">
+                <i class="fas fa-medal"></i>
+                <span>Classificação</span>
+            </a>
+            <a href="#media" class="sidebar-nav-item" onclick="event.preventDefault(); showSection('media'); toggleSidebar();">
+                <i class="fas fa-camera"></i>
+                <span>Fotos & Vídeos</span>
+            </a>
+            <a href="#locations" class="sidebar-nav-item" onclick="event.preventDefault(); showSection('locations'); toggleSidebar();">
+                <i class="fas fa-map-marked-alt"></i>
+                <span>Locais</span>
+            </a>
+            {% if current_user.is_authenticated and current_user.interested_in_13hp %}
+            <a href="{{ url_for('thirteenhp') }}" class="sidebar-nav-item">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>13HP</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.profile') }}" class="sidebar-nav-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Perfil</span>
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin.dashboard') }}" class="sidebar-nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Admin</span>
+                </a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </aside>
+
     <header class="header">
         <div class="container">
-            <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="logo">
-            <h1><i class="fas fa-flag-checkered"></i> Nerds do Kart</h1>
-            <p>Dados de corridas dos Nerds do Kart!</p>
+            <button class="hamburger-menu" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-center">
+                <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="logo">
+                <div class="header-title">
+                    <h1><i class="fas fa-flag-checkered"></i> Nerds do Kart</h1>
+                    <p>Dados de corridas dos Nerds do Kart!</p>
+                </div>
+            </div>
+            <div class="header-auth">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.profile') }}" class="auth-header-btn profile-btn">
+                        <i class="fas fa-user-circle"></i> {{ current_user.name }}
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="auth-header-btn logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="auth-header-btn">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="auth-header-btn">
+                        <i class="fas fa-user-plus"></i> Criar Conta
+                    </a>
+                {% endif %}
+            </div>
         </div>
     </header>
-
-    <nav class="nav">
-        <div class="container">
-            <button class="nav-btn active" onclick="showSection('dashboard')">
-                <i class="fas fa-tachometer-alt"></i> Painel
-            </button>
-            <button class="nav-btn" onclick="showSection('racers')">
-                <i class="fas fa-users"></i> Pilotos
-            </button>
-            <button class="nav-btn" onclick="showSection('races')">
-                <i class="fas fa-trophy"></i> Corridas
-            </button>
-            <button class="nav-btn" onclick="showSection('leaderboard')">
-                <i class="fas fa-medal"></i> Classificação
-            </button>
-            <button class="nav-btn" onclick="showSection('standings')">
-                <i class="fas fa-chart-line"></i> Campeonato
-            </button>
-            <button class="nav-btn" onclick="showSection('media')">
-                <i class="fas fa-camera"></i> Fotos & Vídeos
-            </button>
-            <button class="nav-btn" onclick="showSection('locations')">
-                <i class="fas fa-map-marked-alt"></i> Locais
-            </button>
-        </div>
-    </nav>
 
     <main class="main">
         <div class="container">
@@ -80,6 +138,12 @@
             <!-- Racers Section -->
             <section id="racers" class="section">
                 <h2>Pilotos</h2>
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="racer-search" placeholder="Buscar piloto..." oninput="app.filterRacers(this.value)">
+                    </div>
+                </div>
                 <div id="racers-grid" class="racers-grid">
                     <!-- Racers will be loaded here -->
                 </div>
@@ -111,11 +175,11 @@
 
             <!-- Media Section -->
             <section id="media" class="section">
-                <h2>Fotos & Vídeos</h2>
-                
+                <h2><i class="fas fa-camera"></i> Fotos & Vídeos</h2>
+
                 <div class="media-tabs">
                     <button class="media-tab-btn active" onclick="showMediaTab('photos')">
-                        <i class="fas fa-images"></i> Fotos
+                        <i class="fas fa-images"></i> Álbuns
                     </button>
                     <button class="media-tab-btn" onclick="showMediaTab('videos')">
                         <i class="fas fa-video"></i> Vídeos
@@ -123,46 +187,21 @@
                 </div>
 
                 <div id="photos-tab" class="media-tab-content active">
-                    <div class="media-upload-info">
-                        <p><i class="fas fa-info-circle"></i> Para adicionar fotos: Cole o link do Google Photos ou Google Drive</p>
-                        <div class="config-section">
-                            <label for="photos-drive-id">Link do Google Photos ou ID do Google Drive:</label>
-                            <input type="text" id="photos-drive-id" placeholder="Ex: https://photos.app.goo.gl/A5rxNUdX5L49BUDM8" />
-                            <button onclick="app.loadPhotos()" class="nav-btn">
-                                <i class="fas fa-sync"></i> Carregar Fotos
-                            </button>
-                        </div>
-                    </div>
                     <div id="photos-grid" class="media-grid">
-                        <!-- Photos will be loaded here -->
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Carregando álbuns...</p>
+                        </div>
                     </div>
                 </div>
 
                 <div id="videos-tab" class="media-tab-content">
-                    <div class="media-upload-info">
-                        <p><i class="fas fa-info-circle"></i> Para adicionar vídeos: Cole o link do Google Drive na configuração abaixo</p>
-                        <div class="config-section">
-                            <label for="videos-drive-id">ID da pasta do Google Drive (Vídeos):</label>
-                            <input type="text" id="videos-drive-id" placeholder="Ex: 1A2B3C4D5E6F7G8H9I0J" />
-                            <button onclick="app.loadVideos()" class="nav-btn">
-                                <i class="fas fa-sync"></i> Carregar Vídeos
-                            </button>
+                    <div id="videos-grid" class="media-grid">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Carregando vídeos...</p>
                         </div>
                     </div>
-                    <div id="videos-grid" class="media-grid">
-                        <!-- Videos will be loaded here -->
-                    </div>
-                </div>
-
-                <div class="instructions">
-                    <h3>Como configurar Google Drive:</h3>
-                    <ol>
-                        <li>Crie uma pasta no Google Drive com suas fotos/vídeos</li>
-                        <li>Clique com botão direito → "Compartilhar"</li>
-                        <li>Altere para "Qualquer pessoa com o link pode visualizar"</li>
-                        <li>Copie o ID da pasta do link (parte após /folders/)</li>
-                        <li>Cole o ID nos campos acima e clique em "Carregar"</li>
-                    </ol>
                 </div>
             </section>
 
@@ -178,7 +217,7 @@
 
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2025 Nerds do Kart. Acelera! 🏁</p>
+            <p>Nerds do Kart. Acelera!</p>
         </div>
     </footer>
 

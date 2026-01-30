@@ -1,0 +1,188 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Campeonatos{% endblock %}
+{% block page_title %}Gerenciar Campeonatos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> Novo Campeonato
+    </button>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Descricao</th>
+                <th>Inicio</th>
+                <th>Fim</th>
+                <th>Status</th>
+                <th>Corridas</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for championship in championships %}
+            <tr data-id="{{ championship.id }}">
+                <td>{{ championship.id }}</td>
+                <td>{{ championship.name }}</td>
+                <td>{{ (championship.description[:50] + '...') if championship.description and championship.description|length > 50 else (championship.description or '-') }}</td>
+                <td>{{ championship.start_date.strftime('%d/%m/%Y') if championship.start_date else '-' }}</td>
+                <td>{{ championship.end_date.strftime('%d/%m/%Y') if championship.end_date else '-' }}</td>
+                <td>
+                    <span class="badge {{ 'badge-success' if championship.is_active else 'badge-secondary' }}">
+                        {{ 'Ativo' if championship.is_active else 'Inativo' }}
+                    </span>
+                </td>
+                <td>{{ championship.races|length }}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-secondary" onclick='openEditModal({{ championship.id }}, {{ championship.to_dict()|tojson }})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ championship.id }}, '{{ championship.name }}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="empty-message">Nenhum campeonato cadastrado</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create/Edit Form Template -->
+<template id="championship-form-template">
+    <form id="championship-form" onsubmit="saveChampionship(event)">
+        <input type="hidden" id="championship-id" name="id">
+        <div class="form-group">
+            <label for="championship-name">Nome *</label>
+            <input type="text" id="championship-name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="championship-description">Descricao</label>
+            <textarea id="championship-description" name="description" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="championship-start">Data de Inicio</label>
+                <input type="date" id="championship-start" name="start_date">
+            </div>
+            <div class="form-group">
+                <label for="championship-end">Data de Fim</label>
+                <input type="date" id="championship-end" name="end_date">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="championship-active" name="is_active" value="true" checked>
+                <span>Campeonato Ativo</span>
+            </label>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const entityUrl = '/admin/championships';
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = 'Novo Campeonato';
+    const template = document.getElementById('championship-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+    document.getElementById('championship-id').value = '';
+    openModal();
+}
+
+function openEditModal(id, championship) {
+    document.getElementById('modal-title').textContent = 'Editar Campeonato';
+    const template = document.getElementById('championship-form-template');
+    document.getElementById('modal-body').innerHTML = template.innerHTML;
+
+    document.getElementById('championship-id').value = id;
+    document.getElementById('championship-name').value = championship.name || '';
+    document.getElementById('championship-description').value = championship.description || '';
+    document.getElementById('championship-start').value = championship.start_date || '';
+    document.getElementById('championship-end').value = championship.end_date || '';
+    document.getElementById('championship-active').checked = championship.is_active;
+
+    openModal();
+}
+
+function saveChampionship(event) {
+    event.preventDefault();
+    const form = document.getElementById('championship-form');
+    const id = document.getElementById('championship-id').value;
+    const formData = new FormData(form);
+
+    // Handle checkbox
+    if (!formData.has('is_active')) {
+        formData.append('is_active', 'false');
+    }
+
+    const data = Object.fromEntries(formData.entries());
+
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${entityUrl}/${id}` : entityUrl;
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao salvar campeonato', 'error');
+        console.error(error);
+    });
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('delete-message').textContent = `Tem certeza que deseja excluir o campeonato "${name}"?`;
+    document.getElementById('confirm-delete-btn').onclick = () => deleteChampionship(id);
+    openDeleteModal();
+}
+
+function deleteChampionship(id) {
+    fetch(`${entityUrl}/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(result.message, 'success');
+            closeDeleteModal();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Erro ao excluir campeonato', 'error');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

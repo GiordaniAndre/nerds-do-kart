@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Classificação - Nerds do Kart{% endblock %}
+
+{% block content %}
+<section class="section active">
+    <h2>Classificação (Por Vitórias)</h2>
+    <div id="leaderboard-table" class="table-container">
+        <!-- Leaderboard will be loaded here -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        app.loadLeaderboard();
+    });
+</script>
+{% endblock %}

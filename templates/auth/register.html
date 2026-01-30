@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar Conta - Nerds do Kart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="/logo_nerds.jpg" alt="Nerds do Kart Logo" class="logo">
+                <h1><i class="fas fa-user-plus"></i> Criar Conta</h1>
+                <p>Junte-se aos Nerds do Kart!</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form class="auth-form" method="POST" action="{{ url_for('auth.register') }}">
+                <div class="form-group">
+                    <label for="name">Nome</label>
+                    <input type="text" id="name" name="name" placeholder="Seu nome" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" placeholder="Minimo 6 caracteres" required minlength="6">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirmar Senha</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" required minlength="6">
+                </div>
+
+                <button type="submit" class="auth-btn">
+                    <i class="fas fa-user-plus"></i> Criar Conta
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <p>Ja tem uma conta?</p>
+                <a href="{{ url_for('auth.login') }}">Fazer login</a>
+            </div>
+
+            <a href="{{ url_for('index') }}" class="back-link">
+                <i class="fas fa-arrow-left"></i> Voltar para o site
+            </a>
+        </div>
+    </div>
+</body>
+</html>

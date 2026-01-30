@@ -5,3 +5,6 @@ psycopg2-binary
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 python-dotenv==1.1.1
+flask-talisman==1.1.0
+Flask-Login==0.6.3
+Flask-Bcrypt==1.0.1
